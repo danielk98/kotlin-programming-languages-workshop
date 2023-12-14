@@ -3,7 +3,6 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.requireObject
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
-import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
@@ -42,7 +41,7 @@ class AfterContext : CliktCommand(){
     val userInput: userInput by requireObject()
     val afterContext: Int? by option("-A", "--after-context",
         help= "prints the given number of following lines for each match")
-        .int().default(1)
+        .int()
 
 
     override fun run() {
@@ -51,7 +50,7 @@ class AfterContext : CliktCommand(){
             searcher.preprocess(userInput.pattern, userInput.ignoreCase),
             userInput.noHeading,
             userInput.hidden,
-            afterContext)
+            linesAfter = afterContext)
     }
 
 }
@@ -60,7 +59,7 @@ class BeforeContext : CliktCommand() {
     val userInput: userInput by requireObject()
     val beforeContext: Int? by option("-B", "--before-context",
         help= "prints the given number of preceding lines for each match")
-        .int().default(1)
+        .int()
 
     override fun run() {
         val searcher = Searcher()
@@ -68,7 +67,7 @@ class BeforeContext : CliktCommand() {
             searcher.preprocess(userInput.pattern, userInput.ignoreCase),
             userInput.noHeading,
             userInput.hidden,
-            beforeContext)
+            linesBefore = beforeContext)
     }
 }
 
@@ -77,7 +76,8 @@ class ContextSearch : CliktCommand() {
     val userInput: userInput by requireObject()
     val context: Int? by option("-C", "--context",
         help= "prints the number of preceding and following lines for each match")
-        .int().default(1)
+        .int()
+
 
 
     override fun run() {
@@ -86,7 +86,7 @@ class ContextSearch : CliktCommand() {
             searcher.preprocess(userInput.pattern, userInput.ignoreCase),
             userInput.noHeading,
             userInput.hidden,
-            context)
+            contextLines = context)
     }
 }
 fun main(args: Array<String>) = Search().subcommands(BeforeContext(),

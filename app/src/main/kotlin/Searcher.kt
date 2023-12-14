@@ -36,16 +36,17 @@ class Searcher {
     //iterates through lines and calls searchStringInText (Boyer Moore Horspool algorithm)
     //depending on subcommands, the required lines will be aggregated by the respective
     // aggregatePrintLines... function
-        when
-        {
-            (linesBefore == null && linesAfter == null && contextLines == null)
-            -> resultList = aggregatePrintLinesNoContext(inputStream, filePath, pattern)
+        resultList = when {
             (linesBefore != null)
-            -> resultList = aggregatePrintLinesBeforeMatch(inputStream, filePath, pattern, linesBefore)
+            -> aggregatePrintLinesBeforeMatch(inputStream, filePath, pattern, linesBefore)
+
             (linesAfter != null)
-            -> resultList = aggregatePrintLinesAfterMatch(inputStream, filePath, pattern, linesAfter)
+            -> aggregatePrintLinesAfterMatch(inputStream, filePath, pattern, linesAfter)
+
             (contextLines != null)
-            -> resultList = aggregatePrintLinesWithContext(inputStream, filePath, pattern, contextLines)
+            -> aggregatePrintLinesWithContext(inputStream, filePath, pattern, contextLines)
+
+            else -> aggregatePrintLinesNoContext(inputStream, filePath, pattern)
         }
 
         printResult(resultList, noHeading)
@@ -84,8 +85,36 @@ class Searcher {
 
     private fun aggregatePrintLinesAfterMatch(
         inputStream: InputStream, filePath: String,
-        pattern: CharArray, linesBefore: Int): MutableList<String>  {
-        return mutableListOf()
+        pattern: CharArray, linesAfter: Int): MutableList<String>  {
+
+        var lineCount = 1
+        val resultList: MutableList<String> = mutableListOf()
+        val partialResultList: MutableList<String> = mutableListOf()
+        var matchInPartialResultList = false
+        var offset = linesAfter
+
+        inputStream.bufferedReader().forEachLine {
+            val line = preprocess(it)
+            val isMatch = searchStringInText(pattern, line)
+
+            if (isMatch){
+                partialResultList.add(filePath + ":" + lineCount + ":" + it.toString() + "\n")
+                matchInPartialResultList = true
+            }
+            else
+            {
+                if (matchInPartialResultList)
+                    partialResultList.add(filePath + "-" + lineCount + "-" + it.toString() + "\n")
+            }
+            lineCount++
+
+            if (partialResultList.count() > offset){
+                resultList.addAll(partialResultList)
+                partialResultList.clear()
+                matchInPartialResultList = false
+            }
+        }
+        return resultList
     }
 
     private fun aggregatePrintLinesWithContext(
