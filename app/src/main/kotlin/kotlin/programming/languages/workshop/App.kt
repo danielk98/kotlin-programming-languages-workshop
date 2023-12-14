@@ -1,6 +1,7 @@
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.requireObject
+import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
@@ -14,9 +15,9 @@ class Search : CliktCommand(invokeWithoutSubcommand = true) {
     private val pattern: String by argument(help = "substring to search for")
     private val path: String by argument(help = "file system path")
 
-    private val ignoreCase by option("-i", "--ignore-case", help= "search case insensitive").flag()
-    private val noHeading by option("--no-heading", help= "prints a single line including the filename for each match, instead of grouping matches by file").flag()
-    private val hidden by option("-h", "--hidden", help= "search hidden files and folders").flag()
+    private val ignoreCase by option("-i", "--ignore-case", help= "search case insensitive").flag(default = false)
+    private val noHeading by option("--no-heading", help= "prints a single line including the filename for each match, instead of grouping matches by file").flag(default = false)
+    private val hidden by option("-h", "--hidden", help= "search hidden files and folders").flag(default = false)
 
     override fun run() {
         //save user inputs in context for subcommands
@@ -36,30 +37,38 @@ class Search : CliktCommand(invokeWithoutSubcommand = true) {
     }
 }
 
-class AfterContextSearch : CliktCommand(){
+class AfterContext : CliktCommand(){
 
     val userInput: userInput by requireObject()
-    val afterContext: Int? by option("-A", "--after-context", help= "prints the given number of following lines for each match").int().default(1)
+    val afterContext: Int? by option("-A", "--after-context",
+        help= "prints the given number of following lines for each match")
+        .int().default(1)
 
 
     override fun run() {
         val searcher = Searcher()
-
+        searcher.recursiveFileSearch(userInput.path,
+            searcher.preprocess(userInput.pattern, userInput.ignoreCase),
+            userInput.noHeading,
+            userInput.hidden,
+            afterContext)
     }
 
 }
-class BeforeContextSearch : CliktCommand() {
+class BeforeContext : CliktCommand() {
 
     val userInput: userInput by requireObject()
     val beforeContext: Int? by option("-B", "--before-context",
         help= "prints the given number of preceding lines for each match")
         .int().default(1)
 
-
-
     override fun run() {
         val searcher = Searcher()
-
+        searcher.recursiveFileSearch(userInput.path,
+            searcher.preprocess(userInput.pattern, userInput.ignoreCase),
+            userInput.noHeading,
+            userInput.hidden,
+            beforeContext)
     }
 }
 
@@ -73,18 +82,15 @@ class ContextSearch : CliktCommand() {
 
     override fun run() {
         val searcher = Searcher()
-
+        searcher.recursiveFileSearch(userInput.path,
+            searcher.preprocess(userInput.pattern, userInput.ignoreCase),
+            userInput.noHeading,
+            userInput.hidden,
+            context)
     }
 }
-fun main(args: Array<String>) = Search()
+fun main(args: Array<String>) = Search().subcommands(BeforeContext(),
+                                AfterContext(), ContextSearch())
                                 .main(args)
 /*
-val afterContext: Int? by option("-A", "--after-context", help= "prints the given number of following lines for each match").int().default(1)
-val beforeContext: Int? by option("-B", "--before-context", help= "prints the given number of preceding lines for each match").int().default(1)
-val context: Int? by option("-C", "--context", help= "prints the number of preceding and following lines for each match").int().default(1)
-val color by option("-c", "--color", help= "prints with colors, highlighting the matched phrase in the output").flag()
-val hidden by option("-h", "--hidden", help= "search hidden files and folders").flag()
-val help by option(help="prints this message").flag()
-val ignoreCase by option("-i", "--ignore-case", help= "search case insensitive").flag()
-val noHeading by option("--no-heading", help= "prints a single line including the filename for each match, instead of grouping matches by file").flag()
-//val exit: Int? by option(help = "exit program with 0").int().default(0)*/
+val color by option("-c", "--color", help= "prints with colors, highlighting the matched phrase in the output").flag()*/

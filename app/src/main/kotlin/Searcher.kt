@@ -9,7 +9,8 @@ import kotlin.math.max
 class Searcher {
     var badCharacterTable: Map<Char, Int> = emptyMap<Char, Int>()
     fun recursiveFileSearch(path: String, pattern: CharArray, noHeading: Boolean = false,
-                            hidden: Boolean = false){
+                            hidden: Boolean = false, linesBefore: Int? = null,
+                            linesAfter: Int? = null, contextLines: Int? = null){
         val paths: List<Path> = Path(path).listDirectoryEntries()
         for (p in paths) {
             //skip hidden files, unless the option is set
@@ -18,8 +19,7 @@ class Searcher {
             }
             if (Path(p.toString()).isRegularFile()) {
                 //thread(start = true) {
-                    Path(p.toString())
-                    searchAllLines(p.toString(), pattern)
+                searchAllLines(p.toString(), pattern, noHeading, linesBefore, linesAfter, contextLines)
                 //}
             }
             else if (Path(p.toString()).isDirectory()) {
@@ -27,25 +27,87 @@ class Searcher {
             }
         }
     }
-    fun searchAllLines(filePath: String, pattern: CharArray){
+    fun searchAllLines(filePath: String, pattern: CharArray, noHeading: Boolean,
+                       linesBefore: Int?, linesAfter: Int?, contextLines: Int?){
+
         badCharacterTable = createBadCharacterShiftTable(pattern)
-
         val inputStream: InputStream = File(filePath).inputStream()
-        var lineCount = 1
+        var resultList: MutableList<String> = mutableListOf()
+    //iterates through lines and calls searchStringInText (Boyer Moore Horspool algorithm)
+    //depending on subcommands, the required lines will be aggregated by the respective
+    // aggregatePrintLines... function
+        when
+        {
+            (linesBefore == null && linesAfter == null && contextLines == null)
+            -> resultList = aggregatePrintLinesNoContext(inputStream, filePath, pattern)
+            (linesBefore != null)
+            -> resultList = aggregatePrintLinesBeforeMatch(inputStream, filePath, pattern, linesBefore)
+            (linesAfter != null)
+            -> resultList = aggregatePrintLinesAfterMatch(inputStream, filePath, pattern, linesAfter)
+            (contextLines != null)
+            -> resultList = aggregatePrintLinesWithContext(inputStream, filePath, pattern, contextLines)
+        }
 
+        printResult(resultList, noHeading)
+    }
+
+    private fun aggregatePrintLinesBeforeMatch(
+        inputStream: InputStream, filePath: String,
+        pattern: CharArray, linesBefore: Int): MutableList<String>  {
+
+        var lineCount = 1
+        val resultList: MutableList<String> = mutableListOf()
+        val partialResultList: MutableList<String> = mutableListOf()
+        var offset = linesBefore
+
+        inputStream.bufferedReader().forEachLine {
+            val line = preprocess(it)
+            val isMatch = searchStringInText(pattern, line)
+
+            if (!isMatch) {
+                if (partialResultList.count() > offset)
+                    partialResultList.removeFirst()
+                partialResultList.add(filePath + "-" + lineCount + "-" + it.toString() + "\n")
+            }
+            else {
+                if (partialResultList.count() > offset)
+                    partialResultList.removeFirst()
+                partialResultList.add(filePath + ":" + lineCount + ":" + it.toString() + "\n")
+                resultList.addAll(partialResultList)
+                partialResultList.clear()
+            }
+            lineCount++
+
+        }
+        return resultList
+    }
+
+    private fun aggregatePrintLinesAfterMatch(
+        inputStream: InputStream, filePath: String,
+        pattern: CharArray, linesBefore: Int): MutableList<String>  {
+        return mutableListOf()
+    }
+
+    private fun aggregatePrintLinesWithContext(
+        inputStream: InputStream,filePath: String,
+        pattern: CharArray, linesBefore: Int): MutableList<String>  {
+        return mutableListOf()
+    }
+
+    fun aggregatePrintLinesNoContext(inputStream: InputStream, filePath: String, pattern:CharArray): MutableList<String> {
+        var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
 
         inputStream.bufferedReader().forEachLine {
             val line = preprocess(it)
             val isMatch = searchStringInText(pattern, line)
 
-            if (isMatch)
-            {
-                resultList.add(filePath + " L. " + lineCount + " " + it.toString() + "\n")
+            if (isMatch) {
+                resultList.add(filePath + ":" + lineCount + ":" + it.toString() + "\n")
             }
             lineCount++
         }
-        printResult(resultList)
+        return resultList
     }
 
     /**This method creates the look-up table delta 1 (See paper).
@@ -69,9 +131,12 @@ class Searcher {
         }
         return badCharacterTable
     }
-    fun printResult(result: MutableList<String>){
+    fun printResult(result: MutableList<String>, noHeading: Boolean){
         for (i in result.indices)
             print(result[i])
+        //separates printed lines of different files
+        if (noHeading)
+            println("--")
     }
     //preprocess line as well as pattern into a sequence of chars
     fun searchStringInText(pattern: CharArray, line: CharArray): Boolean
