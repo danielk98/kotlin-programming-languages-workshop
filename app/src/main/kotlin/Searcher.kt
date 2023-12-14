@@ -1,24 +1,26 @@
+
 import java.io.File
 import java.io.InputStream
 import java.nio.file.Path
 import java.util.*
-import kotlin.concurrent.thread
-import kotlin.io.path.Path
-import kotlin.io.path.isDirectory
-import kotlin.io.path.isRegularFile
-import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.*
 import kotlin.math.max
 
 class Searcher {
     var badCharacterTable: Map<Char, Int> = emptyMap<Char, Int>()
-    fun recursiveFileSearch(path: String, pattern: CharArray){
+    fun recursiveFileSearch(path: String, pattern: CharArray, noHeading: Boolean = false,
+                            hidden: Boolean = false){
         val paths: List<Path> = Path(path).listDirectoryEntries()
         for (p in paths) {
+            //skip hidden files, unless the option is set
+            if (Path(p.toString()).isHidden() && !hidden){
+                continue
+            }
             if (Path(p.toString()).isRegularFile()) {
-                thread(start = true) {
+                //thread(start = true) {
                     Path(p.toString())
                     searchAllLines(p.toString(), pattern)
-                }
+                //}
             }
             else if (Path(p.toString()).isDirectory()) {
                 recursiveFileSearch(p.toString(), pattern)
@@ -112,8 +114,12 @@ class Searcher {
         return badCharacterTable[line[lineIndex]] ?: patternLen
     }
 
-    fun preprocess(line: String): CharArray {
-        val result = line.lowercase(Locale.getDefault());
+    fun preprocess(line: String, ignoreCase: Boolean = false): CharArray {
+        var result = ""
+        if (ignoreCase)
+            result = line.lowercase(Locale.getDefault());
+        else
+            result = line
         return result.toCharArray()
     }
 
