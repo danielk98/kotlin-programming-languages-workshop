@@ -9,45 +9,44 @@ import kotlin.math.max
 
 class Searcher {
     var badCharacterTable: Map<Char, Int> = emptyMap<Char, Int>()
-    fun recursiveFileSearch(path: String, pattern: CharArray, noHeading: Boolean = false,
-                            hidden: Boolean = false, linesBefore: Int? = null,
+    fun recursiveFileSearch(path: String, pattern: CharArray, userInput: UserInput, linesBefore: Int? = null,
                             linesAfter: Int? = null, contextLines: Int? = null){
         val paths: List<Path> = Path(path).listDirectoryEntries()
         for (p in paths) {
             //skip hidden files, unless the option is set
-            if (p.isHidden() && !hidden){
+            if (p.isHidden() && !userInput.hidden){
                 continue
             }
             if (p.isRegularFile()) {
                 //thread(start = true) {
-                searchAllLines(p.toString(), pattern, noHeading, linesBefore, linesAfter, contextLines)
+                searchAllLines(p.toString(), pattern, userInput.noHeading, userInput.color, linesBefore, linesAfter, contextLines)
                 //}
             }
-            else if (Path(p.toString()).isDirectory()) {
-                recursiveFileSearch(p.toString(), pattern)
+            else if (p.isDirectory()) {
+                recursiveFileSearch(p.toString(), pattern, userInput, linesBefore, linesAfter, contextLines)
             }
         }
     }
     private fun searchAllLines(filePath: String, pattern: CharArray, noHeading: Boolean,
-                               linesBefore: Int?, linesAfter: Int?, contextLines: Int?){
+                               color: Boolean, linesBefore: Int?, linesAfter: Int?, contextLines: Int?){
 
         badCharacterTable = createBadCharacterShiftTable(pattern)
         val inputStream: InputStream = File(filePath).inputStream()
         var resultList: MutableList<String> = mutableListOf()
-    //iterates through lines and calls searchStringInText (Boyer Moore Horspool algorithm)
-    //depending on subcommands, the required lines will be aggregated by the respective
-    // aggregatePrintLines... function
+        //iterates through lines and calls searchStringInText (Boyer Moore Horspool algorithm)
+        //depending on subcommands, the required lines will be aggregated by the respective
+        // aggregatePrintLines... function
         resultList = when {
             (linesBefore != null)
-            -> aggregatePrintLinesBeforeMatch(inputStream, filePath, pattern, linesBefore)
+            -> aggregatePrintLinesBeforeMatch(inputStream, filePath, pattern, color, linesBefore)
 
             (linesAfter != null)
-            -> aggregatePrintLinesAfterMatch(inputStream, filePath, pattern, linesAfter)
+            -> aggregatePrintLinesAfterMatch(inputStream, filePath, pattern, color, linesAfter)
 
             (contextLines != null)
-            -> aggregatePrintLinesWithContext(inputStream, filePath, pattern, contextLines)
+            -> aggregatePrintLinesWithContext(inputStream, filePath, pattern, color, contextLines)
 
-            else -> aggregatePrintLinesNoContext(inputStream, filePath, pattern)
+            else -> aggregatePrintLinesNoContext(inputStream, filePath, pattern, color)
         }
 
         printResult(resultList, noHeading)
@@ -55,7 +54,7 @@ class Searcher {
 
     private fun aggregatePrintLinesBeforeMatch(
         inputStream: InputStream, filePath: String,
-        pattern: CharArray, linesBefore: Int): MutableList<String>  {
+        pattern: CharArray, color: Boolean, linesBefore: Int): MutableList<String>  {
 
         var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
@@ -86,7 +85,7 @@ class Searcher {
 
     private fun aggregatePrintLinesAfterMatch(
         inputStream: InputStream, filePath: String,
-        pattern: CharArray, linesAfter: Int): MutableList<String>  {
+        pattern: CharArray, color: Boolean, linesAfter: Int): MutableList<String>  {
 
         var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
@@ -120,13 +119,12 @@ class Searcher {
 
     private fun aggregatePrintLinesWithContext(
         inputStream: InputStream,filePath: String,
-        pattern: CharArray, contextLines: Int): MutableList<String>  {
+        pattern: CharArray, color: Boolean, contextLines: Int): MutableList<String>  {
 
         var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
         val partialResultListBefore: MutableList<String> = mutableListOf()
         val partialResultListAfter: MutableList<String> = mutableListOf()
-        var offset = contextLines
         var listHasMatch = false
 
         inputStream.bufferedReader().forEachLine {
@@ -135,11 +133,11 @@ class Searcher {
 
             if (!listHasMatch) {
                 if (!isMatch) {
-                    if (partialResultListBefore.count() > offset)
+                    if (partialResultListBefore.count() > contextLines)
                         partialResultListBefore.removeFirst()
                     partialResultListBefore.add(filePath + "-" + lineCount + "-" + it.toString() + "\n")
                 } else {
-                    if (partialResultListBefore.count() > offset)
+                    if (partialResultListBefore.count() > contextLines)
                         partialResultListBefore.removeFirst()
                     partialResultListBefore.add(filePath + ":" + lineCount + ":" + it.toString() + "\n")
                     listHasMatch = true
@@ -148,7 +146,7 @@ class Searcher {
             else
             {
                 if (isMatch) {
-                    if (partialResultListAfter.count() >= offset) {
+                    if (partialResultListAfter.count() >= contextLines) {
                         resultList.addAll(partialResultListBefore)
                         resultList.addAll(partialResultListAfter)
                         partialResultListBefore.clear()
@@ -157,7 +155,7 @@ class Searcher {
                     } else
                         partialResultListAfter.add(filePath + ":" + lineCount + ":" + it.toString() + "\n")
                 } else {
-                    if (partialResultListAfter.count() >= offset) {
+                    if (partialResultListAfter.count() >= contextLines) {
                         resultList.addAll(partialResultListBefore)
                         resultList.addAll(partialResultListAfter)
                         partialResultListBefore.clear()
@@ -173,7 +171,8 @@ class Searcher {
         return resultList
     }
 
-    private fun aggregatePrintLinesNoContext(inputStream: InputStream, filePath: String, pattern:CharArray): MutableList<String> {
+    private fun aggregatePrintLinesNoContext(inputStream: InputStream, filePath: String,
+                                             pattern:CharArray, color: Boolean): MutableList<String> {
         var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
 
@@ -182,7 +181,7 @@ class Searcher {
             val isMatch = searchStringInText(pattern, line)
 
             if (isMatch) {
-                resultList.add(filePath + ":" + lineCount + ":" + it.toString() + "\n")
+                resultList.add(formatAndStyleLine(filePath, lineCount, it.toString(), isMatch, color ))
             }
             lineCount++
         }
@@ -217,7 +216,7 @@ class Searcher {
         if (noHeading)
             println("--")
     }
-    //preprocess line as well as pattern into a sequence of chars
+    //uses the Boyer-Moore-Horspool algorithm to match a line of text with the search pattern
     private fun searchStringInText(pattern: CharArray, line: CharArray): Boolean
     {
         val patternLen = pattern.size
@@ -265,6 +264,23 @@ class Searcher {
         else
             result = line
         return result.toCharArray()
+    }
+
+    private fun formatAndStyleLine(path: String, lineCount: Int, line: String,
+                           isMatch: Boolean, withColor: Boolean = false): String{
+        //anis escape codes
+        val reset = "\u001b[0m"
+        val purple = "\u001b[35m"  //purple for the filePath
+        val green = "\u001b[32m" //green for the lineCount
+        val red = "\u001b[31m"  //red for highlighting matches
+
+        val result = when {
+            isMatch && withColor -> "$purple$path$reset:$green$lineCount$reset:$line\n"
+            !isMatch && withColor -> "$purple$path$reset-$green$lineCount$reset-$line\n"
+            isMatch && !withColor -> "$path:$lineCount:$line\n"
+            else -> "$path-$lineCount-$line\n"
+        }
+        return result
     }
 
 }
