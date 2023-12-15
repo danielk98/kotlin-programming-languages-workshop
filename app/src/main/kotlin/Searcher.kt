@@ -8,13 +8,16 @@ import kotlin.math.max
 
 
 class Searcher {
-    var badCharacterTable: Map<Char, Int> = emptyMap<Char, Int>()
+    var badCharacterTable: Map<Char, Int> = emptyMap()
     fun recursiveFileSearch(path: String, pattern: CharArray, userInput: UserInput, linesBefore: Int? = null,
                             linesAfter: Int? = null, contextLines: Int? = null){
         val paths: List<Path> = Path(path).listDirectoryEntries()
         for (p in paths) {
+            if (!userInput.binary && isBinaryFile(p.toString())){
+                continue
+            }
             //skip hidden files, unless the option is set
-            if (p.isHidden() && !userInput.hidden){
+            if (!userInput.hidden && p.isHidden()){
                 continue
             }
             if (p.isRegularFile()) {
@@ -32,11 +35,10 @@ class Searcher {
 
         badCharacterTable = createBadCharacterShiftTable(pattern)
         val inputStream: InputStream = File(filePath).inputStream()
-        var resultList: MutableList<String> = mutableListOf()
         //iterates through lines and calls searchStringInText (Boyer Moore Horspool algorithm)
         //depending on subcommands, the required lines will be aggregated by the respective
         // aggregatePrintLines... function
-        resultList = when {
+        val resultList: MutableList<String> = when {
             (linesBefore != null)
             -> aggregatePrintLinesBeforeMatch(inputStream, filePath, pattern, color, linesBefore)
 
@@ -231,7 +233,7 @@ class Searcher {
         val lineLen = line.size
         var patIndex = patternLen - 1 //we compare the pattern with the line from left to right, but start from the right side of the pattern to look for matches in the line
         var lineIndex = patIndex
-        var shiftValue = 0
+        var shiftValue: Int
         var shiftTotal = 0
         var matchedChar = 0
 
@@ -266,11 +268,10 @@ class Searcher {
     }
 
     fun preprocess(line: String, ignoreCase: Boolean = false): CharArray {
-        var result = ""
-        if (ignoreCase)
-            result = line.lowercase(Locale.getDefault());
+        val result = if (ignoreCase)
+            line.lowercase(Locale.getDefault())
         else
-            result = line
+            line
         return result.toCharArray()
     }
 
@@ -316,6 +317,40 @@ class Searcher {
             result = line.concatToString()
         }
         return result
+    }
+
+    //based on the algorithm proposed on: https://stackoverflow.com/questions/620993/determining-binary-text-file-type-in-java
+    //this method reads a byte array of the given file and determines the percentage of non-ascii-characters
+    //if that percentage surpasses 95 %, the file will be evaluated as binary
+    private fun isBinaryFile(path: String): Boolean {
+
+        val inputStream: InputStream = File(path).inputStream()
+        var size = inputStream.available()
+
+        if (size > 1024)
+            size = 1024
+        val data = ByteArray(size)
+        inputStream.read(data)
+        inputStream.close()
+
+        var ascii = 0
+        var other = 0
+        for (i in data.indices) {
+            val b = data[i]
+            if (b < 0x09)
+                return true
+
+            if (b.toInt() == 0x09 || b.toInt() == 0x0A || b.toInt() == 0x0C || b.toInt() == 0x0D)
+                ascii++
+            else if (b in 0x20..0x7E)
+                ascii++
+            else
+                other++
+        }
+        if (other == 0)
+            return false
+        else
+            return 100 * other / (ascii + other) > 95
     }
 
 }
