@@ -2,7 +2,7 @@ To run the program:
 
 1.) navigate to the project folder
 
-2.) type: java -jar app/target/app.jar <[options]> <pattern> <path> <command> <arg>
+2.) type: java -jar app/target/app.jar [options] [pattern] [path] [command] [arg]
 
     for example:
     java -jar app/target/app.jar --help
