@@ -59,21 +59,22 @@ class Searcher {
         var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
         val partialResultList: MutableList<String> = mutableListOf()
-        var offset = linesBefore
 
         inputStream.bufferedReader().forEachLine {
             val line = preprocess(it)
-            val isMatch = searchStringInText(pattern, line)
+            val searchResult = searchStringInText(pattern, line)
+            val isMatch = searchResult.first
 
             if (!isMatch) {
-                if (partialResultList.count() > offset)
+                if (partialResultList.count() > linesBefore)
                     partialResultList.removeFirst()
-                partialResultList.add(filePath + "-" + lineCount + "-" + it.toString() + "\n")
+                partialResultList.add(formatAndStyleLine(filePath, lineCount, it, isMatch, color ))
             }
             else {
-                if (partialResultList.count() > offset)
+                if (partialResultList.count() > linesBefore)
                     partialResultList.removeFirst()
-                partialResultList.add(filePath + ":" + lineCount + ":" + it.toString() + "\n")
+                partialResultList.add(formatAndStyleLine(filePath, lineCount,
+                    getLineWithColoredMatch(pattern, line, color, searchResult.second), isMatch, color))
                 resultList.addAll(partialResultList)
                 partialResultList.clear()
             }
@@ -91,24 +92,26 @@ class Searcher {
         val resultList: MutableList<String> = mutableListOf()
         val partialResultList: MutableList<String> = mutableListOf()
         var matchInPartialResultList = false
-        var offset = linesAfter
 
         inputStream.bufferedReader().forEachLine {
             val line = preprocess(it)
-            val isMatch = searchStringInText(pattern, line)
+            val searchResult = searchStringInText(pattern, line)
+            val isMatch = searchResult.first
 
             if (isMatch){
-                partialResultList.add(filePath + ":" + lineCount + ":" + it.toString() + "\n")
+                partialResultList.add(formatAndStyleLine(filePath, lineCount,
+                    getLineWithColoredMatch(pattern, line, color, searchResult.second),
+                    isMatch, color))
                 matchInPartialResultList = true
             }
             else
             {
                 if (matchInPartialResultList)
-                    partialResultList.add(filePath + "-" + lineCount + "-" + it.toString() + "\n")
+                    partialResultList.add(formatAndStyleLine(filePath, lineCount, it, isMatch, color))
             }
             lineCount++
 
-            if (partialResultList.count() > offset){
+            if (partialResultList.count() > linesAfter){
                 resultList.addAll(partialResultList)
                 partialResultList.clear()
                 matchInPartialResultList = false
@@ -129,17 +132,19 @@ class Searcher {
 
         inputStream.bufferedReader().forEachLine {
             val line = preprocess(it)
-            val isMatch = searchStringInText(pattern, line)
+            val searchResult = searchStringInText(pattern, line)
+            val isMatch = searchResult.first
 
             if (!listHasMatch) {
                 if (!isMatch) {
                     if (partialResultListBefore.count() > contextLines)
                         partialResultListBefore.removeFirst()
-                    partialResultListBefore.add(filePath + "-" + lineCount + "-" + it.toString() + "\n")
+                    partialResultListBefore.add(formatAndStyleLine(filePath, lineCount, it, isMatch, color))
                 } else {
                     if (partialResultListBefore.count() > contextLines)
                         partialResultListBefore.removeFirst()
-                    partialResultListBefore.add(filePath + ":" + lineCount + ":" + it.toString() + "\n")
+                    partialResultListBefore.add(formatAndStyleLine(filePath, lineCount,
+                        getLineWithColoredMatch(pattern, line, color, searchResult.second), isMatch, color))
                     listHasMatch = true
                 }
             }
@@ -153,7 +158,8 @@ class Searcher {
                         partialResultListAfter.clear()
                         listHasMatch = false
                     } else
-                        partialResultListAfter.add(filePath + ":" + lineCount + ":" + it.toString() + "\n")
+                        partialResultListAfter.add(formatAndStyleLine(filePath, lineCount,
+                            getLineWithColoredMatch(pattern, line, color, searchResult.second), isMatch, color))
                 } else {
                     if (partialResultListAfter.count() >= contextLines) {
                         resultList.addAll(partialResultListBefore)
@@ -162,7 +168,7 @@ class Searcher {
                         partialResultListAfter.clear()
                         listHasMatch = false
                     } else
-                        partialResultListAfter.add(filePath + "-" + lineCount + "-" + it.toString() + "\n")
+                        partialResultListAfter.add(formatAndStyleLine(filePath, lineCount, it, isMatch, color))
 
                 }
             }
@@ -178,10 +184,12 @@ class Searcher {
 
         inputStream.bufferedReader().forEachLine {
             val line = preprocess(it)
-            val isMatch = searchStringInText(pattern, line)
+            val searchResult = searchStringInText(pattern, line)
+            val isMatch = searchResult.first
 
             if (isMatch) {
-                resultList.add(formatAndStyleLine(filePath, lineCount, it.toString(), isMatch, color ))
+                resultList.add(formatAndStyleLine(filePath, lineCount,
+                    getLineWithColoredMatch(pattern, line, color, searchResult.second), isMatch, color))
             }
             lineCount++
         }
@@ -217,7 +225,7 @@ class Searcher {
             println("--")
     }
     //uses the Boyer-Moore-Horspool algorithm to match a line of text with the search pattern
-    private fun searchStringInText(pattern: CharArray, line: CharArray): Boolean
+    private fun searchStringInText(pattern: CharArray, line: CharArray):Pair<Boolean, Int>
     {
         val patternLen = pattern.size
         val lineLen = line.size
@@ -233,7 +241,7 @@ class Searcher {
             if(pattern[patIndex].equals(line[lineIndex]))
             {
                 if (patIndex == 0)
-                    return true
+                    return Pair(true, lineIndex)
                 ++matchedChar
                 --patIndex
                 --lineIndex
@@ -249,7 +257,7 @@ class Searcher {
                 matchedChar = 0
             }
         }
-        return false
+        return Pair(false, -1)
     }
 
     private fun getShiftValue(line: CharArray, lineIndex: Int, patternLen: Int): Int
@@ -268,17 +276,44 @@ class Searcher {
 
     private fun formatAndStyleLine(path: String, lineCount: Int, line: String,
                            isMatch: Boolean, withColor: Boolean = false): String{
-        //anis escape codes
+        //ANSI escape codes
         val reset = "\u001b[0m"
-        val purple = "\u001b[35m"  //purple for the filePath
-        val green = "\u001b[32m" //green for the lineCount
-        val red = "\u001b[31m"  //red for highlighting matches
+        val purple = "\u001b[95m"  //purple for the filePath
+        val green = "\u001b[92m" //green for the lineCount
 
         val result = when {
             isMatch && withColor -> "$purple$path$reset:$green$lineCount$reset:$line\n"
             !isMatch && withColor -> "$purple$path$reset-$green$lineCount$reset-$line\n"
             isMatch && !withColor -> "$path:$lineCount:$line\n"
             else -> "$path-$lineCount-$line\n"
+        }
+        return result
+    }
+
+    //This method splits the line into two separate string on the index of the
+    //matching substring to turn
+    private fun getLineWithColoredMatch(pattern: CharArray, line: CharArray,
+                                        color: Boolean, lineIndexMatchStart: Int): String{
+        //ANSI escape codes
+        val reset = "\u001b[0m"
+        val red = "\u001b[91m"  //red for highlighting matches
+
+        val lineIndexMatchEnd = lineIndexMatchStart + pattern.size -1
+
+        val firstPart: String
+        val matchingSubstring: String
+        val secondPart: String
+        val result: String
+
+        if (color) {
+            firstPart = line.copyOfRange(0, lineIndexMatchStart).concatToString()
+            matchingSubstring = line.copyOfRange(lineIndexMatchStart, lineIndexMatchEnd + 1).concatToString()
+            secondPart = line.copyOfRange(lineIndexMatchEnd + 1, line.size).concatToString()
+
+            result = firstPart + red + matchingSubstring + reset + secondPart
+        }
+        else {
+            result = line.concatToString()
         }
         return result
     }
