@@ -6,21 +6,22 @@ import java.util.*
 import kotlin.io.path.*
 import kotlin.math.max
 
-
 class Searcher {
     var badCharacterTable: Map<Char, Int> = emptyMap()
+    val printHelper = PrintHelper()
     fun recursiveFileSearch(path: String, pattern: CharArray, userInput: UserInput, linesBefore: Int? = null,
                             linesAfter: Int? = null, contextLines: Int? = null){
         val paths: List<Path> = Path(path).listDirectoryEntries()
         for (p in paths) {
-            if (!userInput.binary && isBinaryFile(p.toString())){
-                continue
-            }
             //skip hidden files, unless the option is set
             if (!userInput.hidden && p.isHidden()){
                 continue
             }
             if (p.isRegularFile()) {
+                //skip binary files, unless the option is set
+                if (!userInput.binary && isBinaryFile(p.toString())){
+                    continue
+                }
                 //thread(start = true) {
                 searchAllLines(p.toString(), pattern, userInput.noHeading, userInput.color, linesBefore, linesAfter, contextLines)
                 //}
@@ -33,7 +34,7 @@ class Searcher {
     private fun searchAllLines(filePath: String, pattern: CharArray, noHeading: Boolean,
                                color: Boolean, linesBefore: Int?, linesAfter: Int?, contextLines: Int?){
 
-        badCharacterTable = createBadCharacterShiftTable(pattern)
+        //badCharacterTable = createBadCharacterShiftTable(pattern)
         val inputStream: InputStream = File(filePath).inputStream()
         //iterates through lines and calls searchStringInText (Boyer Moore Horspool algorithm)
         //depending on subcommands, the required lines will be aggregated by the respective
@@ -51,7 +52,7 @@ class Searcher {
             else -> aggregatePrintLinesNoContext(inputStream, filePath, pattern, color)
         }
 
-        printResult(resultList, noHeading)
+        printHelper.printResult(resultList, noHeading)
     }
 
     private fun aggregatePrintLinesBeforeMatch(
@@ -68,26 +69,26 @@ class Searcher {
             val isMatch = searchResult.first
 
             if (!isMatch) {
-                if (partialResultList.count() > linesBefore)
+                if (partialResultList.count() > linesBefore) {
                     partialResultList.removeFirst()
-                partialResultList.add(formatAndStyleLine(filePath, lineCount, it, isMatch, color ))
+                }
+                partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount, it, isMatch, color ))
             }
             else {
-                if (partialResultList.count() > linesBefore)
+                if (partialResultList.count() > linesBefore) {
                     partialResultList.removeFirst()
-                partialResultList.add(formatAndStyleLine(filePath, lineCount,
-                    getLineWithColoredMatch(pattern, line, color, searchResult.second), isMatch, color))
+                }
+                partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                    printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second), isMatch, color))
                 resultList.addAll(partialResultList)
                 partialResultList.clear()
             }
             lineCount++
-
         }
         return resultList
     }
 
-    private fun aggregatePrintLinesAfterMatch(
-        inputStream: InputStream, filePath: String,
+    private fun aggregatePrintLinesAfterMatch(inputStream: InputStream, filePath: String,
         pattern: CharArray, color: Boolean, linesAfter: Int): MutableList<String>  {
 
         var lineCount = 1
@@ -101,15 +102,15 @@ class Searcher {
             val isMatch = searchResult.first
 
             if (isMatch){
-                partialResultList.add(formatAndStyleLine(filePath, lineCount,
-                    getLineWithColoredMatch(pattern, line, color, searchResult.second),
+                partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                    printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
                     isMatch, color))
                 matchInPartialResultList = true
             }
             else
             {
                 if (matchInPartialResultList)
-                    partialResultList.add(formatAndStyleLine(filePath, lineCount, it, isMatch, color))
+                    partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount, it, isMatch, color))
             }
             lineCount++
 
@@ -137,41 +138,62 @@ class Searcher {
             val searchResult = searchStringInText(pattern, line)
             val isMatch = searchResult.first
 
-            if (!listHasMatch) {
-                if (!isMatch) {
+            if (!listHasMatch)
+            {
+                if (!isMatch)
+                {
                     if (partialResultListBefore.count() > contextLines)
+                    {
                         partialResultListBefore.removeFirst()
-                    partialResultListBefore.add(formatAndStyleLine(filePath, lineCount, it, isMatch, color))
-                } else {
+                    }
+                    partialResultListBefore.add(printHelper.formatAndStyleLine(filePath, lineCount, it, isMatch, color))
+                }
+                else
+                {
                     if (partialResultListBefore.count() > contextLines)
+                    {
                         partialResultListBefore.removeFirst()
-                    partialResultListBefore.add(formatAndStyleLine(filePath, lineCount,
-                        getLineWithColoredMatch(pattern, line, color, searchResult.second), isMatch, color))
+                    }
+                    partialResultListBefore.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                        printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
+                        isMatch, color))
                     listHasMatch = true
                 }
             }
             else
             {
-                if (isMatch) {
-                    if (partialResultListAfter.count() >= contextLines) {
+                if (isMatch)
+                {
+                    if (partialResultListAfter.count() >= contextLines)
+                    {
                         resultList.addAll(partialResultListBefore)
                         resultList.addAll(partialResultListAfter)
                         partialResultListBefore.clear()
                         partialResultListAfter.clear()
                         listHasMatch = false
-                    } else
-                        partialResultListAfter.add(formatAndStyleLine(filePath, lineCount,
-                            getLineWithColoredMatch(pattern, line, color, searchResult.second), isMatch, color))
-                } else {
-                    if (partialResultListAfter.count() >= contextLines) {
+                    }
+                    else
+                    {
+                        partialResultListAfter.add(
+                            printHelper.formatAndStyleLine(filePath, lineCount,
+                                printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
+                                isMatch, color))
+                    }
+                }
+                else
+                {
+                    if (partialResultListAfter.count() >= contextLines)
+                    {
                         resultList.addAll(partialResultListBefore)
                         resultList.addAll(partialResultListAfter)
                         partialResultListBefore.clear()
                         partialResultListAfter.clear()
                         listHasMatch = false
-                    } else
-                        partialResultListAfter.add(formatAndStyleLine(filePath, lineCount, it, isMatch, color))
-
+                    }
+                    else
+                    {
+                        partialResultListAfter.add(printHelper.formatAndStyleLine(filePath, lineCount, it, isMatch, color))
+                    }
                 }
             }
                 lineCount++
@@ -180,7 +202,8 @@ class Searcher {
     }
 
     private fun aggregatePrintLinesNoContext(inputStream: InputStream, filePath: String,
-                                             pattern:CharArray, color: Boolean): MutableList<String> {
+                                             pattern:CharArray, color: Boolean): MutableList<String>
+    {
         var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
 
@@ -189,27 +212,31 @@ class Searcher {
             val searchResult = searchStringInText(pattern, line)
             val isMatch = searchResult.first
 
-            if (isMatch) {
-                resultList.add(formatAndStyleLine(filePath, lineCount,
-                    getLineWithColoredMatch(pattern, line, color, searchResult.second), isMatch, color))
+            if (isMatch)
+            {
+                resultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                            printHelper.getLineWithColoredMatch(pattern, line, color,
+                                                searchResult.second), isMatch, color))
             }
             lineCount++
         }
         return resultList
     }
 
-    /**This method creates the look-up table delta 1 (See paper).
+    /**This method creates the look-up table delta 1.
      * It contains the shift values for all characters of a search pattern.
      * If we encounter a mismatch, we take the mismatching character from the text T
      * (the text that we compare our pattern against) and look it up in the badCharacterShiftTable.
      * The shift value for that specific character will tell us how far we can skip our pattern ahead.
      * The shift value for characters that are not in the table is always the length of the pattern.
      * */
-    private fun createBadCharacterShiftTable(pattern: CharArray): MutableMap<Char, Int>
+    fun createBadCharacterShiftTable(pattern: CharArray): MutableMap<Char, Int>
     {
         val badCharacterTable = mutableMapOf<Char, Int>()
-        for (i in pattern.indices){
-            if (!badCharacterTable.containsKey(pattern[i])){
+        for (i in pattern.indices)
+        {
+            if (!badCharacterTable.containsKey(pattern[i]))
+            {
                 badCharacterTable.put(pattern[i], max(1,pattern.size - i - 1))
             }
             else //overwrite shift value of char with the shift value of the char that occurs at a higher index
@@ -219,13 +246,12 @@ class Searcher {
         }
         return badCharacterTable
     }
-    private fun printResult(result: MutableList<String>, noHeading: Boolean){
-        for (i in result.indices)
-            print(result[i])
-        //separates printed lines of different files
-        if (noHeading)
-            println("--")
+
+    fun setBadCharacterTable(pattern: CharArray){
+        badCharacterTable = createBadCharacterShiftTable(pattern)
     }
+
+
     //uses the Boyer-Moore-Horspool algorithm to match a line of text with the search pattern
     private fun searchStringInText(pattern: CharArray, line: CharArray):Pair<Boolean, Int>
     {
@@ -237,7 +263,6 @@ class Searcher {
         var shiftTotal = 0
         var matchedChar = 0
 
-        //lineIndex < lineLen
         while(lineLen - shiftTotal >= patternLen )
         {
             if(pattern[patIndex].equals(line[lineIndex]))
@@ -275,50 +300,6 @@ class Searcher {
         return result.toCharArray()
     }
 
-    private fun formatAndStyleLine(path: String, lineCount: Int, line: String,
-                           isMatch: Boolean, withColor: Boolean = false): String{
-        //ANSI escape codes
-        val reset = "\u001b[0m"
-        val purple = "\u001b[95m"  //purple for the filePath
-        val green = "\u001b[92m" //green for the lineCount
-
-        val result = when {
-            isMatch && withColor -> "$purple$path$reset:$green$lineCount$reset:$line\n"
-            !isMatch && withColor -> "$purple$path$reset-$green$lineCount$reset-$line\n"
-            isMatch && !withColor -> "$path:$lineCount:$line\n"
-            else -> "$path-$lineCount-$line\n"
-        }
-        return result
-    }
-
-    //This method splits the line into two separate string on the index of the
-    //matching substring to turn
-    private fun getLineWithColoredMatch(pattern: CharArray, line: CharArray,
-                                        color: Boolean, lineIndexMatchStart: Int): String{
-        //ANSI escape codes
-        val reset = "\u001b[0m"
-        val red = "\u001b[91m"  //red for highlighting matches
-
-        val lineIndexMatchEnd = lineIndexMatchStart + pattern.size -1
-
-        val firstPart: String
-        val matchingSubstring: String
-        val secondPart: String
-        val result: String
-
-        if (color) {
-            firstPart = line.copyOfRange(0, lineIndexMatchStart).concatToString()
-            matchingSubstring = line.copyOfRange(lineIndexMatchStart, lineIndexMatchEnd + 1).concatToString()
-            secondPart = line.copyOfRange(lineIndexMatchEnd + 1, line.size).concatToString()
-
-            result = firstPart + red + matchingSubstring + reset + secondPart
-        }
-        else {
-            result = line.concatToString()
-        }
-        return result
-    }
-
     //based on the algorithm proposed on: https://stackoverflow.com/questions/620993/determining-binary-text-file-type-in-java
     //this method reads a byte array of the given file and determines the percentage of non-ascii-characters
     //if that percentage surpasses 95 %, the file will be evaluated as binary
@@ -334,23 +315,23 @@ class Searcher {
         inputStream.close()
 
         var ascii = 0
-        var other = 0
+        var nonAscii = 0
         for (i in data.indices) {
             val b = data[i]
-            if (b < 0x09)
-                return true
 
             if (b.toInt() == 0x09 || b.toInt() == 0x0A || b.toInt() == 0x0C || b.toInt() == 0x0D)
                 ascii++
             else if (b in 0x20..0x7E)
                 ascii++
             else
-                other++
+                nonAscii++
         }
-        if (other == 0)
+        if (nonAscii == 0)
             return false
-        else
-            return 100 * other / (ascii + other) > 95
+        else{
+            return (nonAscii / size * 100) > 95
+        }
+
     }
 
 }

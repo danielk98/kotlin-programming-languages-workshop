@@ -12,10 +12,10 @@ data class UserInput(val pattern: String, val path: String,
                      val hidden: Boolean, val color: Boolean,
                     val binary: Boolean)
 class Search : CliktCommand(invokeWithoutSubcommand = true) {
-
-    private val pattern: String by argument(help = "substring to search for")
-    private val path: String by argument(help = "file system path")
-
+    //arguments
+    private val pattern: String by argument(help = "pattern to search for")
+    private val path: String by argument(help = "file system path to define the scope of the search")
+    //options
     private val ignoreCase by option("-i", "--ignore-case", help= "search case insensitive").flag(default = false)
     private val noHeading by option("--no-heading", help= "prints a single line including the filename for each match, instead of grouping matches by file").flag(default = false)
     private val hidden by option("-h", "--hidden", help= "search hidden files and folders").flag(default = false)
@@ -23,7 +23,7 @@ class Search : CliktCommand(invokeWithoutSubcommand = true) {
     private val color by option("-c", "--color", help= "prints with colors, highlighting the matched phrase in the output").flag(default = false)
 
     override fun run() {
-        //save user inputs in context for subcommands
+        //save user inputs in context for further use within subcommands
         val userInput = UserInput(pattern, path, ignoreCase, noHeading, hidden, color, binary)
         currentContext.obj = userInput
 
@@ -31,9 +31,9 @@ class Search : CliktCommand(invokeWithoutSubcommand = true) {
         val subcommand = currentContext.invokedSubcommand
         if (subcommand == null && !userInput.path.equals(null) && !userInput.pattern.equals(null)) {
             val searcher = Searcher()
-            searcher.recursiveFileSearch(userInput.path,
-                searcher.preprocess(userInput.pattern, userInput.ignoreCase),
-                userInput)
+            val patternCharArray = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
+            searcher.setBadCharacterTable(patternCharArray)
+            searcher.recursiveFileSearch(userInput.path, patternCharArray, userInput)
         }
 
     }
@@ -47,8 +47,9 @@ class AfterContext : CliktCommand(help= "prints the given number of following li
 
     override fun run() {
         val searcher = Searcher()
-        searcher.recursiveFileSearch(userInput.path,
-            searcher.preprocess(userInput.pattern, userInput.ignoreCase),
+        val patternCharArray = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
+        searcher.setBadCharacterTable(patternCharArray)
+        searcher.recursiveFileSearch(userInput.path, patternCharArray,
             userInput, linesAfter = afterContext)
     }
 
@@ -61,22 +62,23 @@ class BeforeContext : CliktCommand(help= "prints the given number of preceding l
 
     override fun run() {
         val searcher = Searcher()
-        searcher.recursiveFileSearch(userInput.path,
-            searcher.preprocess(userInput.pattern, userInput.ignoreCase),
+        val patternCharArray = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
+        searcher.setBadCharacterTable(patternCharArray)
+        searcher.recursiveFileSearch(userInput.path, patternCharArray,
             userInput, linesBefore = beforeContext)
     }
 }
 
 class ContextSearch : CliktCommand("prints the number of preceding and following lines for each match") {
-    //options
     private val userInput: UserInput by requireObject()
     //private val context: Int? by option("-C", "--context", help= "prints the number of preceding and following lines for each match").int()
     private val context: Int? by argument(help = "prints the number of preceding and following lines for each match").int()
 
     override fun run() {
         val searcher = Searcher()
-        searcher.recursiveFileSearch(userInput.path,
-            searcher.preprocess(userInput.pattern, userInput.ignoreCase),
+        val patternCharArray = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
+        searcher.setBadCharacterTable(patternCharArray)
+        searcher.recursiveFileSearch(userInput.path, patternCharArray,
             userInput, contextLines = context)
     }
 }
