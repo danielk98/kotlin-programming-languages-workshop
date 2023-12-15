@@ -40,6 +40,18 @@ java {
     }
 }
 
+jar {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    destinationDirectory.set(file("target"))
+    manifest {
+        attributes 'Main-Class': 'AppKt'
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
+
 application {
     // Define the main class for the application.
     mainClass = 'AppKt'

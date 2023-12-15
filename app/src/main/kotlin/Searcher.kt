@@ -9,6 +9,7 @@ import kotlin.math.max
 class Searcher {
     var badCharacterTable: Map<Char, Int> = emptyMap()
     val printHelper = PrintHelper()
+
     fun recursiveFileSearch(path: String, pattern: CharArray, userInput: UserInput, linesBefore: Int? = null,
                             linesAfter: Int? = null, contextLines: Int? = null){
         val paths: List<Path> = Path(path).listDirectoryEntries()
