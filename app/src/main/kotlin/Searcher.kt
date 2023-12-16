@@ -1,9 +1,13 @@
 
 import java.io.File
 import java.io.InputStream
+import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.regex.Pattern
-import kotlin.io.path.*
+import kotlin.io.path.Path
+import kotlin.io.path.isDirectory
+import kotlin.io.path.isHidden
 import kotlin.math.max
 
 class Searcher {
@@ -14,32 +18,26 @@ class Searcher {
         path: String, pattern: Pattern, userInput: UserInput, linesBefore: Int? = null,
         linesAfter: Int? = null, contextLines: Int? = null
     ) {
-        val paths: List<Path> = Path(path).listDirectoryEntries()
-        for (p in paths) {
-            //skip hidden files, unless the option is set
-            if (!userInput.hidden && p.isHidden()) {
-                continue
-            }
-            if (p.isRegularFile()) {
-                //skip binary files, unless the option is set
-                if (!userInput.binary && isBinaryFile(p.toString())) {
-                    continue
+        var paths: List<Path> = emptyList()
+        //in case given path is a file
+        if (Path(path).isDirectory())
+            Files.walk(Paths.get(path))
+                .filter { Files.isRegularFile(it) }
+                .forEach {
+                    if (isBinaryFile(it.toString()) && !userInput.binary){ }
+                    else if (it.isHidden() && !userInput.hidden) { }
+                    else
+                    {
+                        searchAllLines(it.toString(), pattern, userInput.noHeading, userInput.color, linesBefore, linesAfter, contextLines)
+                    }
                 }
-                //thread(start = true) {
-                searchAllLines(
-                    p.toString(),
-                    pattern,
-                    userInput.noHeading,
-                    userInput.color,
-                    linesBefore,
-                    linesAfter,
-                    contextLines
-                )
-                //}
-            } else if (p.isDirectory()) {
-                recursiveFileSearch(p.toString(), pattern, userInput, linesBefore, linesAfter, contextLines)
+        else
+            if (isBinaryFile(path) && !userInput.binary){ }
+            else if (Path(path).isHidden() && !userInput.hidden) { }
+            else
+            {
+                searchAllLines(path, pattern, userInput.noHeading, userInput.color, linesBefore, linesAfter, contextLines)
             }
-        }
     }
 
     private fun searchAllLines(
@@ -303,7 +301,7 @@ class Searcher {
 
 
     //
-    private fun searchStringInText(pattern: Pattern, line: CharSequence): Pair<Boolean, MutableList<Int>> {
+    private fun searchStringInText(pattern: Pattern, line: CharSequence): Pair<Boolean, MutableMap<Int,Int>> {
         /*val patternLen = pattern.pattern.length
         val lineLen = line.length
         var patIndex = patternLen - 1 //we compare the pattern with the line from left to right, but start from the right side of the pattern to look for matches in the line
@@ -316,9 +314,9 @@ class Searcher {
         //while(lineLen - shiftTotal >= patternLen )
         //{
         val matcher = pattern.matcher(line)
-        var matchIndices: MutableList<Int> = emptyList<Int>().toMutableList()
+        var matchIndices: MutableMap<Int,Int> = emptyMap<Int,Int>().toMutableMap()
         while (matcher.find()) {
-            matchIndices.add(matcher.start())
+            matchIndices.put(matcher.start(), matcher.end())
         }
         if (matchIndices.isEmpty())
             return Pair(false, matchIndices)

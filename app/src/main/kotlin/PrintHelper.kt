@@ -13,7 +13,7 @@ class PrintHelper {
                            withColor: Boolean = false, noHeading: Boolean = false): String{
 
         val result: String
-        if (noHeading) {
+        if (!noHeading) {
             result = when {
                 isMatch && withColor -> ":$green$lineCount$reset:$line\n"
                 !isMatch && withColor -> "-$green$lineCount$reset-$line\n"
@@ -35,7 +35,7 @@ class PrintHelper {
     //This method splits the line into two separate string on the index of the
     //matching substring to turn
     fun getLineWithColoredMatch(pattern: Pattern, line: CharSequence,
-                                color: Boolean, lineIndexMatchStart: MutableList<Int>): String {
+                                color: Boolean, lineIndexMatchStart: MutableMap<Int,Int>): String {
 
         var firstPart: String
         var matchingSubstring: String
@@ -48,9 +48,10 @@ class PrintHelper {
         var resetOffset = 0
         var matchIndex = 0
         for (m in lineIndexMatchStart) {
-            matchIndex = m
+            matchIndex = m.key
             matchIndex += colorOffset + resetOffset
-            lineIndexMatchEnd =  matchIndex + pattern.pattern().length
+            lineIndexMatchEnd = m.value + colorOffset + resetOffset
+            //lineIndexMatchEnd =  matchIndex + pattern.pattern().length
 
             if (color) {
                 firstPart = result.subSequence(0, matchIndex).toString()
