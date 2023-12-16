@@ -1,13 +1,9 @@
 
 import java.io.File
 import java.io.InputStream
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.regex.Pattern
-import kotlin.io.path.Path
-import kotlin.io.path.isDirectory
-import kotlin.io.path.isHidden
+import kotlin.io.path.*
 import kotlin.math.max
 
 class Searcher {
@@ -21,23 +17,30 @@ class Searcher {
         var paths: List<Path> = emptyList()
         //in case given path is a file
         if (Path(path).isDirectory())
-            Files.walk(Paths.get(path))
-                .filter { Files.isRegularFile(it) }
-                .forEach {
-                    if (isBinaryFile(it.toString()) && !userInput.binary){ }
-                    else if (it.isHidden() && !userInput.hidden) { }
-                    else
-                    {
-                        searchAllLines(it.toString(), pattern, userInput.noHeading, userInput.color, linesBefore, linesAfter, contextLines)
-                    }
-                }
-        else
-            if (isBinaryFile(path) && !userInput.binary){ }
-            else if (Path(path).isHidden() && !userInput.hidden) { }
-            else
-            {
-                searchAllLines(path, pattern, userInput.noHeading, userInput.color, linesBefore, linesAfter, contextLines)
+            paths = Path(path).listDirectoryEntries()
+        else {
+            if (Path(path).isHidden() && !userInput.hidden) { }
+            else if (isBinaryFile(path) && !userInput.binary) { }
+            else if (Path(path).isRegularFile()) {
+                searchAllLines(path, pattern, userInput.noHeading, userInput.color,
+                    linesBefore, linesAfter, contextLines)
             }
+        }
+
+        for (p in paths) {
+            //skip hidden files, unless the option is set
+            if (p.isHidden() && !userInput.hidden) { }
+            //skip binary files, unless the option is set
+            else if (p.isRegularFile()) {
+                if (isBinaryFile(p.toString()) && !userInput.binary) { }
+                else
+                searchAllLines(p.toString(), pattern, userInput.noHeading, userInput.color,
+                    linesBefore, linesAfter, contextLines)
+            }
+            else if (p.isDirectory()) {
+                recursiveFileSearch(p.toString(), pattern, userInput, linesBefore, linesAfter, contextLines)
+            }
+        }
     }
 
     private fun searchAllLines(
@@ -346,7 +349,7 @@ class Searcher {
 
     //based on the algorithm proposed on: https://stackoverflow.com/questions/620993/determining-binary-text-file-type-in-java
     //this method reads a byte array of the given file and determines the percentage of non-ascii-characters
-    //if that percentage surpasses 95 %, the file will be evaluated as binary
+    //if that percentage surpasses 50 %, the file will be evaluated as binary.
     private fun isBinaryFile(path: String): Boolean {
 
         val inputStream: InputStream = File(path).inputStream()
@@ -361,7 +364,7 @@ class Searcher {
         var ascii = 0
         var nonAscii = 0
         for (i in data.indices) {
-            val b = data[i]
+            val b: Byte = data[i]
 
             if (b.toInt() == 0x09 || b.toInt() == 0x0A || b.toInt() == 0x0C || b.toInt() == 0x0D)
                 ascii++
@@ -373,7 +376,7 @@ class Searcher {
         if (nonAscii == 0)
             return false
         else{
-            return (nonAscii / size * 100) > 95
+            return 100 * nonAscii / (ascii + nonAscii) > 50;
         }
 
     }
