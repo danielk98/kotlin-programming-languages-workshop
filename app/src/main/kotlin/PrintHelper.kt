@@ -1,18 +1,31 @@
 //This class is used for coloring and printing the output
 class PrintHelper {
 
-    fun formatAndStyleLine(path: String, lineCount: Int, line: String,
-                                   isMatch: Boolean, withColor: Boolean = false): String{
-        //ANSI escape codes
-        val reset = "\u001b[0m"
-        val purple = "\u001b[95m"  //purple for the filePath
-        val green = "\u001b[92m" //green for the lineCount
+    //ANSI escape codes
+    private val reset = "\u001b[0m"
+    private val purple = "\u001b[95m"   //purple for the filePath
+    private val green = "\u001b[92m"    //green for the lineCount
+    private val red = "\u001b[91m"              //red for highlighting matches
 
-        val result = when {
-            isMatch && withColor -> "$purple$path$reset:$green$lineCount$reset:$line\n"
-            !isMatch && withColor -> "$purple$path$reset-$green$lineCount$reset-$line\n"
-            isMatch && !withColor -> "$path:$lineCount:$line\n"
-            else -> "$path-$lineCount-$line\n"
+    fun formatAndStyleLine(path: String, lineCount: Int, line: String, isMatch: Boolean,
+                           withColor: Boolean = false, noHeading: Boolean = false): String{
+
+        val result: String
+        if (noHeading) {
+            result = when {
+                isMatch && withColor -> ":$green$lineCount$reset:$line\n"
+                !isMatch && withColor -> "-$green$lineCount$reset-$line\n"
+                isMatch && !withColor -> ":$lineCount:$line\n"
+                else -> "-$lineCount-$line\n"
+            }
+        }
+        else {
+            result = when {
+                isMatch && withColor -> "$purple$path$reset:$green$lineCount$reset:$line\n"
+                !isMatch && withColor -> "$purple$path$reset-$green$lineCount$reset-$line\n"
+                isMatch && !withColor -> "$path:$lineCount:$line\n"
+                else -> "$path-$lineCount-$line\n"
+            }
         }
         return result
     }
@@ -21,9 +34,6 @@ class PrintHelper {
     //matching substring to turn
     fun getLineWithColoredMatch(pattern: CharArray, line: CharArray,
                                         color: Boolean, lineIndexMatchStart: Int): String{
-        //ANSI escape codes
-        val reset = "\u001b[0m"
-        val red = "\u001b[91m"  //red for highlighting matches
 
         val lineIndexMatchEnd = lineIndexMatchStart + pattern.size -1
 
@@ -44,11 +54,11 @@ class PrintHelper {
         }
         return result
     }
-    fun printResult(result: MutableList<String>, noHeading: Boolean){
+    fun printResult(result: MutableList<String>){
         for (i in result.indices)
             print(result[i])
         //separates printed lines of different files
-        if (noHeading)
+        if (result.isNotEmpty())
             println("--")
     }
 }

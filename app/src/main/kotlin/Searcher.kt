@@ -42,23 +42,23 @@ class Searcher {
         // aggregatePrintLines... function
         val resultList: MutableList<String> = when {
             (linesBefore != null)
-            -> aggregatePrintLinesBeforeMatch(inputStream, filePath, pattern, color, linesBefore)
+            -> aggregatePrintLinesBeforeMatch(inputStream, filePath, pattern, color, noHeading, linesBefore)
 
             (linesAfter != null)
-            -> aggregatePrintLinesAfterMatch(inputStream, filePath, pattern, color, linesAfter)
+            -> aggregatePrintLinesAfterMatch(inputStream, filePath, pattern, color, noHeading, linesAfter)
 
             (contextLines != null)
-            -> aggregatePrintLinesWithContext(inputStream, filePath, pattern, color, contextLines)
+            -> aggregatePrintLinesWithContext(inputStream, filePath, pattern, color, noHeading, contextLines)
 
-            else -> aggregatePrintLinesNoContext(inputStream, filePath, pattern, color)
+            else -> aggregatePrintLinesNoContext(inputStream, filePath, pattern, color, noHeading)
         }
 
-        printHelper.printResult(resultList, noHeading)
+        printHelper.printResult(resultList)
     }
 
     private fun aggregatePrintLinesBeforeMatch(
-        inputStream: InputStream, filePath: String,
-        pattern: CharArray, color: Boolean, linesBefore: Int): MutableList<String>  {
+        inputStream: InputStream, filePath: String, pattern: CharArray, color: Boolean,
+        noHeading: Boolean, linesBefore: Int): MutableList<String>  {
 
         var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
@@ -73,14 +73,14 @@ class Searcher {
                 if (partialResultList.count() > linesBefore) {
                     partialResultList.removeFirst()
                 }
-                partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount, it, isMatch, color ))
+                partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount, it, isMatch, color, noHeading))
             }
             else {
                 if (partialResultList.count() > linesBefore) {
                     partialResultList.removeFirst()
                 }
                 partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
-                    printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second), isMatch, color))
+                    printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second), isMatch, color, noHeading))
                 resultList.addAll(partialResultList)
                 partialResultList.clear()
             }
@@ -90,7 +90,7 @@ class Searcher {
     }
 
     private fun aggregatePrintLinesAfterMatch(inputStream: InputStream, filePath: String,
-        pattern: CharArray, color: Boolean, linesAfter: Int): MutableList<String>  {
+        pattern: CharArray, color: Boolean, noHeading: Boolean, linesAfter: Int): MutableList<String>  {
 
         var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
@@ -105,13 +105,13 @@ class Searcher {
             if (isMatch){
                 partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
                     printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
-                    isMatch, color))
+                    isMatch, color, noHeading))
                 matchInPartialResultList = true
             }
             else
             {
                 if (matchInPartialResultList)
-                    partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount, it, isMatch, color))
+                    partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount, it, isMatch, color, noHeading))
             }
             lineCount++
 
@@ -125,8 +125,8 @@ class Searcher {
     }
 
     private fun aggregatePrintLinesWithContext(
-        inputStream: InputStream,filePath: String,
-        pattern: CharArray, color: Boolean, contextLines: Int): MutableList<String>  {
+        inputStream: InputStream,filePath: String, pattern: CharArray,
+        color: Boolean, noHeading: Boolean, contextLines: Int): MutableList<String>  {
 
         var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
@@ -147,7 +147,7 @@ class Searcher {
                     {
                         partialResultListBefore.removeFirst()
                     }
-                    partialResultListBefore.add(printHelper.formatAndStyleLine(filePath, lineCount, it, isMatch, color))
+                    partialResultListBefore.add(printHelper.formatAndStyleLine(filePath, lineCount, it, isMatch, color, noHeading))
                 }
                 else
                 {
@@ -157,7 +157,7 @@ class Searcher {
                     }
                     partialResultListBefore.add(printHelper.formatAndStyleLine(filePath, lineCount,
                         printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
-                        isMatch, color))
+                        isMatch, color, noHeading))
                     listHasMatch = true
                 }
             }
@@ -178,7 +178,7 @@ class Searcher {
                         partialResultListAfter.add(
                             printHelper.formatAndStyleLine(filePath, lineCount,
                                 printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
-                                isMatch, color))
+                                isMatch, color, noHeading))
                     }
                 }
                 else
@@ -193,7 +193,8 @@ class Searcher {
                     }
                     else
                     {
-                        partialResultListAfter.add(printHelper.formatAndStyleLine(filePath, lineCount, it, isMatch, color))
+                        partialResultListAfter.add(printHelper.formatAndStyleLine(filePath, lineCount, it,
+                            isMatch, color, noHeading))
                     }
                 }
             }
@@ -202,8 +203,8 @@ class Searcher {
         return resultList
     }
 
-    private fun aggregatePrintLinesNoContext(inputStream: InputStream, filePath: String,
-                                             pattern:CharArray, color: Boolean): MutableList<String>
+    private fun aggregatePrintLinesNoContext(inputStream: InputStream, filePath: String, pattern:CharArray,
+                                             color: Boolean, noHeading: Boolean): MutableList<String>
     {
         var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
@@ -217,7 +218,7 @@ class Searcher {
             {
                 resultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
                             printHelper.getLineWithColoredMatch(pattern, line, color,
-                                                searchResult.second), isMatch, color))
+                                                searchResult.second), isMatch, color, noHeading))
             }
             lineCount++
         }
