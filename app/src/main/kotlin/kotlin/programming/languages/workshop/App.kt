@@ -31,9 +31,10 @@ class Search : CliktCommand(invokeWithoutSubcommand = true) {
         val subcommand = currentContext.invokedSubcommand
         if (subcommand == null && !userInput.path.equals(null) && !userInput.pattern.equals(null)) {
             val searcher = Searcher()
-            val patternCharArray = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
-            searcher.setBadCharacterTable(patternCharArray)
-            searcher.recursiveFileSearch(userInput.path, patternCharArray, userInput)
+
+            val patternRegex = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
+            //searcher.setBadCharacterTable(patternRegex)
+            searcher.recursiveFileSearch(userInput.path, patternRegex, userInput)
         }
 
     }
@@ -47,9 +48,9 @@ class AfterContext : CliktCommand(help= "prints the given number of following li
 
     override fun run() {
         val searcher = Searcher()
-        val patternCharArray = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
-        searcher.setBadCharacterTable(patternCharArray)
-        searcher.recursiveFileSearch(userInput.path, patternCharArray,
+        val patternRegex = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
+        //searcher.setBadCharacterTable(patternRegex)
+        searcher.recursiveFileSearch(userInput.path, patternRegex,
             userInput, linesAfter = afterContext)
     }
 
@@ -62,9 +63,9 @@ class BeforeContext : CliktCommand(help= "prints the given number of preceding l
 
     override fun run() {
         val searcher = Searcher()
-        val patternCharArray = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
-        searcher.setBadCharacterTable(patternCharArray)
-        searcher.recursiveFileSearch(userInput.path, patternCharArray,
+        val patternRegex = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
+        //searcher.setBadCharacterTable(patternRegex)
+        searcher.recursiveFileSearch(userInput.path, patternRegex,
             userInput, linesBefore = beforeContext)
     }
 }
@@ -76,9 +77,9 @@ class ContextSearch : CliktCommand("prints the number of preceding and following
 
     override fun run() {
         val searcher = Searcher()
-        val patternCharArray = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
-        searcher.setBadCharacterTable(patternCharArray)
-        searcher.recursiveFileSearch(userInput.path, patternCharArray,
+        val patternRegex = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
+        //searcher.setBadCharacterTable(patternRegex)
+        searcher.recursiveFileSearch(userInput.path, patternRegex,
             userInput, contextLines = context)
     }
 }
