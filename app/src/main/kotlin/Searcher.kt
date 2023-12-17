@@ -183,94 +183,63 @@ class Searcher {
 
         var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
-        val partialResultListBefore: MutableList<String> = mutableListOf()
-        val partialResultListAfter: MutableList<String> = mutableListOf()
+        var partialResultList: MutableList<String> = mutableListOf()
         var listHasMatch = false
-        var previousMatch = false
+        var lastMatch = 0
 
         inputStream.bufferedReader().forEachLine {
             val line = preprocessLine(it)
             val searchResult = searchStringInText(pattern, line)
             val isMatch = searchResult.first
 
-            if (!listHasMatch) {
-                if (!isMatch && !previousMatch) {
-                    if (partialResultListBefore.count() > contextLines) {
-                        partialResultListBefore.removeFirst()
-                    }
-                    partialResultListBefore.add(
-                        printHelper.formatAndStyleLine(filePath, lineCount,
-                            it, isMatch, color, noHeading))
+            if (!listHasMatch){
+                if (partialResultList.count() > contextLines)
+                    partialResultList.removeFirst()
+                if (isMatch){
+                    partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                        printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
+                        isMatch, color, noHeading))
+
+                    listHasMatch = true
                 }
                 else
                 {
-                    if (partialResultListBefore.count() > contextLines) {
-                        partialResultListBefore.removeFirst()
-                    }
-                    partialResultListBefore.add(
-                        printHelper.formatAndStyleLine(
-                            filePath, lineCount,
-                            printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
-                            isMatch, color, noHeading
-                        )
-                    )
-                    listHasMatch = true
-                    previousMatch = false //forget previous match
+                    partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                        it, isMatch, color, noHeading))
                 }
             }
-            else {
-                if (isMatch) {
-                    if (partialResultListAfter.count() == contextLines) {
-                        resultList.addAll(partialResultListBefore)
-                        resultList.addAll(partialResultListAfter)
-                        partialResultListBefore.clear()
-                        partialResultListAfter.clear()
+            else
+            {
+                if (lastMatch == contextLines){
+                    resultList.addAll(partialResultList)
+                    resultList.add("--\n")
 
-                        partialResultListBefore.add(
-                            printHelper.formatAndStyleLine(filePath, lineCount,
-                                printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
-                                isMatch, color, noHeading))
+                    partialResultList.clear()
+                    listHasMatch = false
+                    lastMatch = 0
+                }
+                else
+                {
+                    if (isMatch)
+                    {
+                        partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                            printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
+                            isMatch, color, noHeading))
 
-                        listHasMatch = false
-                        previousMatch = true    //remember previously match
+                        lastMatch = 0
                     }
-                    else {
-                        partialResultListAfter.add(
-                            printHelper.formatAndStyleLine(
-                                filePath, lineCount,
-                                printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
-                                isMatch, color, noHeading
-                            )
-                        )
-                    }
-                } else {
-                    if (partialResultListAfter.count() == contextLines) {
-                        resultList.addAll(partialResultListBefore)
-                        resultList.addAll(partialResultListAfter)
-                        partialResultListBefore.clear()
-                        partialResultListAfter.clear()
+                    else
+                    {
+                        partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                            it, isMatch, color, noHeading))
 
-                        partialResultListBefore.add(
-                            printHelper.formatAndStyleLine(filePath, lineCount,
-                                it,
-                                isMatch, color, noHeading))
-
-                        listHasMatch = false
-                    } else {
-                        partialResultListAfter.add(
-                            printHelper.formatAndStyleLine(
-                                filePath, lineCount, it,
-                                isMatch, color, noHeading
-                            )
-                        )
+                        lastMatch++
                     }
                 }
+
             }
             lineCount++
         }
-        if (noHeading)
-            resultList.add("--")
-
         return resultList
     }
 
@@ -307,14 +276,11 @@ class Searcher {
     private fun aggregatePrintLinesForOptionBasedContextSearch(inputStream: InputStream, filePath: String, pattern: Pattern,
         color: Boolean, noHeading: Boolean, linesBefore: Int?, linesAfter: Int?): MutableList<String>
     {
-
         var lineCount = 1
         val resultList: MutableList<String> = mutableListOf()
-        val partialResultListBefore: MutableList<String> = mutableListOf()
-        val partialResultListAfter: MutableList<String> = mutableListOf()
+        var partialResultList: MutableList<String> = mutableListOf()
         var listHasMatch = false
-        var previousMatch = false
-
+        var lastMatch = 0
         val beforeOffset = linesBefore?: 0
         val afterOffset = linesAfter?: 0
 
@@ -323,79 +289,54 @@ class Searcher {
             val searchResult = searchStringInText(pattern, line)
             val isMatch = searchResult.first
 
-            if (!listHasMatch) {
-                if (!isMatch && !previousMatch) {
-                    if (partialResultListBefore.count() > beforeOffset) {
-                        partialResultListBefore.removeFirst()
-                    }
-                    if (beforeOffset != 0)
-                        partialResultListBefore.add(printHelper.formatAndStyleLine(filePath, lineCount,
-                            it, isMatch, color, noHeading))
-                } else {
-                    if (partialResultListBefore.count() > beforeOffset) {
-                        partialResultListBefore.removeFirst()
-                    }
-                    partialResultListBefore.add(
-                        printHelper.formatAndStyleLine(
-                            filePath, lineCount,
-                            printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
-                            isMatch, color, noHeading))
+            if (!listHasMatch){
+                if (partialResultList.count() > beforeOffset)
+                    partialResultList.removeFirst()
+                if (isMatch){
+                    partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                        printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
+                        isMatch, color, noHeading))
+
                     listHasMatch = true
-                    previousMatch = false
+                }
+                else
+                {
+                    partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                        it, isMatch, color, noHeading))
                 }
             }
-            else {
-                if (isMatch) {
-                    if (partialResultListAfter.count() == afterOffset) {
-                        resultList.addAll(partialResultListBefore)
-                        resultList.addAll(partialResultListAfter)
-                        partialResultListBefore.clear()
-                        partialResultListAfter.clear()
+            else
+            {
+                if (lastMatch == afterOffset){
+                    resultList.addAll(partialResultList)
+                    resultList.add("--\n")
 
-                        partialResultListBefore.add(
-                            printHelper.formatAndStyleLine(filePath, lineCount,
-                                printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
-                                isMatch, color, noHeading))
+                    partialResultList.clear()
+                    listHasMatch = false
+                    lastMatch = 0
+                }
+                else
+                {
+                    if (isMatch)
+                    {
+                        partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                            printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
+                            isMatch, color, noHeading))
 
-                        listHasMatch = false
-                        previousMatch = true
-                    } else {
-                        partialResultListAfter.add(
-                            printHelper.formatAndStyleLine(
-                                filePath, lineCount,
-                                printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
-                                isMatch, color, noHeading
-                            )
-                        )
+                        lastMatch = 0
                     }
-                } else {
-                    if (partialResultListAfter.count() == afterOffset) {
-                        resultList.addAll(partialResultListBefore)
-                        resultList.addAll(partialResultListAfter)
-                        partialResultListBefore.clear()
-                        partialResultListAfter.clear()
+                    else
+                    {
+                        partialResultList.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                            it, isMatch, color, noHeading))
 
-                        partialResultListBefore.add(
-                            printHelper.formatAndStyleLine(filePath, lineCount,
-                                it,
-                                isMatch, color, noHeading))
-
-                        listHasMatch = false
-                    } else {
-                        partialResultListAfter.add(
-                            printHelper.formatAndStyleLine(
-                                filePath, lineCount, it,
-                                isMatch, color, noHeading
-                            )
-                        )
+                        lastMatch++
                     }
                 }
+
             }
             lineCount++
         }
-        if (noHeading)
-            resultList.add("--")
-
         return resultList
 
     }
