@@ -51,7 +51,6 @@ class PrintHelper {
             matchIndex = m.key
             matchIndex += colorOffset + resetOffset
             lineIndexMatchEnd = m.value + colorOffset + resetOffset
-            //lineIndexMatchEnd =  matchIndex + pattern.pattern().length
 
             if (color) {
                 firstPart = result.subSequence(0, matchIndex).toString()

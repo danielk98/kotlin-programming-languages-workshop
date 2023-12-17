@@ -12,7 +12,7 @@ class Searcher {
 
     fun recursiveFileSearch(
         path: String, pattern: Pattern, userInput: UserInput, linesBefore: Int? = null,
-        linesAfter: Int? = null, contextLines: Int? = null
+        linesAfter: Int? = null, contextLines: Int? = null, optionBased: Boolean = false
     ) {
         var paths: List<Path> = emptyList()
         //in case given path is a file
@@ -23,7 +23,7 @@ class Searcher {
             else if (isBinaryFile(path) && !userInput.binary) { }
             else if (Path(path).isRegularFile()) {
                 searchAllLines(path, pattern, userInput.noHeading, userInput.color,
-                    linesBefore, linesAfter, contextLines)
+                    linesBefore, linesAfter, contextLines, optionBased)
             }
         }
 
@@ -35,7 +35,7 @@ class Searcher {
                 if (isBinaryFile(p.toString()) && !userInput.binary) { }
                 else
                 searchAllLines(p.toString(), pattern, userInput.noHeading, userInput.color,
-                    linesBefore, linesAfter, contextLines)
+                    linesBefore, linesAfter, contextLines, optionBased)
             }
             else if (p.isDirectory()) {
                 recursiveFileSearch(p.toString(), pattern, userInput, linesBefore, linesAfter, contextLines)
@@ -45,25 +45,38 @@ class Searcher {
 
     private fun searchAllLines(
         filePath: String, pattern: Pattern, noHeading: Boolean,
-        color: Boolean, linesBefore: Int?, linesAfter: Int?, contextLines: Int?
+        color: Boolean, linesBefore: Int?, linesAfter: Int?, contextLines: Int?,
+        optionBased: Boolean
     ) {
 
         //badCharacterTable = createBadCharacterShiftTable(pattern)
         val inputStream: InputStream = File(filePath).inputStream()
-        //iterates through lines and calls searchStringInText (Boyer Moore Horspool algorithm)
-        //depending on subcommands, the required lines will be aggregated by the respective
-        // aggregatePrintLines... function
-        val resultList: MutableList<String> = when {
-            (linesBefore != null)
-            -> aggregatePrintLinesBeforeMatch(inputStream, filePath, pattern, color, noHeading, linesBefore)
+        val resultList: MutableList<String>
+        if (!optionBased) {
+            //iterates through lines and calls searchStringInText
+            //depending on subcommands, the required lines will be aggregated by the respective
+            // aggregatePrintLines... function
+                resultList = when {
+                (linesBefore != null)
+                -> aggregatePrintLinesBeforeMatch(inputStream, filePath, pattern, color, noHeading, linesBefore)    //subcommand: before-context
 
-            (linesAfter != null)
-            -> aggregatePrintLinesAfterMatch(inputStream, filePath, pattern, color, noHeading, linesAfter)
+                (linesAfter != null)
+                -> aggregatePrintLinesAfterMatch(inputStream, filePath, pattern, color, noHeading, linesAfter)      //subcommand: after-context
 
-            (contextLines != null)
-            -> aggregatePrintLinesWithContext(inputStream, filePath, pattern, color, noHeading, contextLines)
+                (contextLines != null)
+                -> aggregatePrintLinesWithContext(inputStream, filePath, pattern, color, noHeading, contextLines)   //subcommand: context-search
 
-            else -> aggregatePrintLinesNoContext(inputStream, filePath, pattern, color, noHeading)
+                else -> aggregatePrintLinesNoContext(inputStream, filePath, pattern, color, noHeading)
+            }
+        }
+        else {
+            resultList = when {
+                (contextLines != null && contextLines != 0)
+                -> aggregatePrintLinesWithContext(inputStream, filePath, pattern, color, noHeading, contextLines)  //option -C, --context-search
+                //option based context search: -A --after-context and -B --before-context
+                else -> aggregatePrintLinesForOptionBasedContextSearch(inputStream, filePath, pattern, color, noHeading, linesBefore, linesAfter
+                )
+            }
         }
 
         printHelper.printResult(resultList)
@@ -146,15 +159,8 @@ class Searcher {
             } else {
                 if (matchInPartialResultList)
                     partialResultList.add(
-                        printHelper.formatAndStyleLine(
-                            filePath,
-                            lineCount,
-                            it,
-                            isMatch,
-                            color,
-                            noHeading
-                        )
-                    )
+                        printHelper.formatAndStyleLine(filePath, lineCount, it, isMatch,
+                            color, noHeading))
             }
             lineCount++
 
@@ -177,6 +183,7 @@ class Searcher {
         val partialResultListBefore: MutableList<String> = mutableListOf()
         val partialResultListAfter: MutableList<String> = mutableListOf()
         var listHasMatch = false
+        var previousMatch = false
 
         inputStream.bufferedReader().forEachLine {
             val line = preprocessLine(it)
@@ -184,21 +191,16 @@ class Searcher {
             val isMatch = searchResult.first
 
             if (!listHasMatch) {
-                if (!isMatch) {
+                if (!isMatch && !previousMatch) {
                     if (partialResultListBefore.count() > contextLines) {
                         partialResultListBefore.removeFirst()
                     }
                     partialResultListBefore.add(
-                        printHelper.formatAndStyleLine(
-                            filePath,
-                            lineCount,
-                            it,
-                            isMatch,
-                            color,
-                            noHeading
-                        )
-                    )
-                } else {
+                        printHelper.formatAndStyleLine(filePath, lineCount,
+                            it, isMatch, color, noHeading))
+                }
+                else
+                {
                     if (partialResultListBefore.count() > contextLines) {
                         partialResultListBefore.removeFirst()
                     }
@@ -210,16 +212,26 @@ class Searcher {
                         )
                     )
                     listHasMatch = true
+                    previousMatch = false //forget previous match
                 }
-            } else {
+            }
+            else {
                 if (isMatch) {
-                    if (partialResultListAfter.count() >= contextLines) {
+                    if (partialResultListAfter.count() == contextLines) {
                         resultList.addAll(partialResultListBefore)
                         resultList.addAll(partialResultListAfter)
                         partialResultListBefore.clear()
                         partialResultListAfter.clear()
+
+                        partialResultListBefore.add(
+                            printHelper.formatAndStyleLine(filePath, lineCount,
+                                printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
+                                isMatch, color, noHeading))
+
                         listHasMatch = false
-                    } else {
+                        previousMatch = true    //remember previously match
+                    }
+                    else {
                         partialResultListAfter.add(
                             printHelper.formatAndStyleLine(
                                 filePath, lineCount,
@@ -229,11 +241,17 @@ class Searcher {
                         )
                     }
                 } else {
-                    if (partialResultListAfter.count() >= contextLines) {
+                    if (partialResultListAfter.count() == contextLines) {
                         resultList.addAll(partialResultListBefore)
                         resultList.addAll(partialResultListAfter)
                         partialResultListBefore.clear()
                         partialResultListAfter.clear()
+
+                        partialResultListBefore.add(
+                            printHelper.formatAndStyleLine(filePath, lineCount,
+                                it,
+                                isMatch, color, noHeading))
+
                         listHasMatch = false
                     } else {
                         partialResultListAfter.add(
@@ -278,7 +296,101 @@ class Searcher {
         return resultList
     }
 
-    /** --***Not-used***-- This method creates the look-up table delta 1.
+    private fun aggregatePrintLinesForOptionBasedContextSearch(inputStream: InputStream, filePath: String, pattern: Pattern,
+        color: Boolean, noHeading: Boolean, linesBefore: Int?, linesAfter: Int?): MutableList<String>
+    {
+
+        var lineCount = 1
+        val resultList: MutableList<String> = mutableListOf()
+        val partialResultListBefore: MutableList<String> = mutableListOf()
+        val partialResultListAfter: MutableList<String> = mutableListOf()
+        var listHasMatch = false
+        var previousMatch = false
+
+        val beforeOffset = linesBefore?: 0
+        val afterOffset = linesAfter?: 0
+
+        inputStream.bufferedReader().forEachLine {
+            val line = preprocessLine(it)
+            val searchResult = searchStringInText(pattern, line)
+            val isMatch = searchResult.first
+
+            if (!listHasMatch) {
+                if (!isMatch && !previousMatch) {
+                    if (partialResultListBefore.count() > beforeOffset) {
+                        partialResultListBefore.removeFirst()
+                    }
+                    if (beforeOffset != 0)
+                        partialResultListBefore.add(printHelper.formatAndStyleLine(filePath, lineCount,
+                            it, isMatch, color, noHeading))
+                } else {
+                    if (partialResultListBefore.count() > beforeOffset) {
+                        partialResultListBefore.removeFirst()
+                    }
+                    partialResultListBefore.add(
+                        printHelper.formatAndStyleLine(
+                            filePath, lineCount,
+                            printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
+                            isMatch, color, noHeading))
+                    listHasMatch = true
+                    previousMatch = false
+                }
+            }
+            else {
+                if (isMatch) {
+                    if (partialResultListAfter.count() == afterOffset) {
+                        resultList.addAll(partialResultListBefore)
+                        resultList.addAll(partialResultListAfter)
+                        partialResultListBefore.clear()
+                        partialResultListAfter.clear()
+
+                        partialResultListBefore.add(
+                            printHelper.formatAndStyleLine(filePath, lineCount,
+                                printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
+                                isMatch, color, noHeading))
+
+                        listHasMatch = false
+                        previousMatch = true
+                    } else {
+                        partialResultListAfter.add(
+                            printHelper.formatAndStyleLine(
+                                filePath, lineCount,
+                                printHelper.getLineWithColoredMatch(pattern, line, color, searchResult.second),
+                                isMatch, color, noHeading
+                            )
+                        )
+                    }
+                } else {
+                    if (partialResultListAfter.count() == afterOffset) {
+                        resultList.addAll(partialResultListBefore)
+                        resultList.addAll(partialResultListAfter)
+                        partialResultListBefore.clear()
+                        partialResultListAfter.clear()
+
+                        partialResultListBefore.add(
+                            printHelper.formatAndStyleLine(filePath, lineCount,
+                                it,
+                                isMatch, color, noHeading))
+
+                        listHasMatch = false
+                    } else {
+                        partialResultListAfter.add(
+                            printHelper.formatAndStyleLine(
+                                filePath, lineCount, it,
+                                isMatch, color, noHeading
+                            )
+                        )
+                    }
+                }
+            }
+            lineCount++
+        }
+        return resultList
+
+    }
+
+    /** --***Not-used***--
+     * This method creates the look-up table delta 1.
      * It contains the shift values for all characters of a search pattern.
      * If we encounter a mismatch, we take the mismatching character from the text T
      * (the text that we compare our pattern against) and look it up in the badCharacterShiftTable.
@@ -333,12 +445,12 @@ class Searcher {
         return badCharacterTable[line[lineIndex]] ?: patternLen
     }
 
+    //used to preprocess the search pattern
     fun preprocess(line: String, ignoreCase: Boolean = false): Pattern {
-        val result = if (ignoreCase)
+        return if (ignoreCase)
             Pattern.compile(line, Pattern.CASE_INSENSITIVE)
         else
             Pattern.compile(line)
-        return result
     }
 
     fun preprocessLine(line: String): CharSequence{
@@ -348,8 +460,8 @@ class Searcher {
     }
 
     //based on the algorithm proposed on: https://stackoverflow.com/questions/620993/determining-binary-text-file-type-in-java
-    //this method reads a byte array of the given file and determines the percentage of non-ascii-characters
-    //if that percentage surpasses 50 %, the file will be evaluated as binary.
+    //this method reads a byte array of the given file and determines the percentage of control ascii-characters
+    //or asciis from the extended set. If that percentage surpasses 50 %, the file will be evaluated as binary.
     private fun isBinaryFile(path: String): Boolean {
 
         val inputStream: InputStream = File(path).inputStream()
@@ -362,7 +474,8 @@ class Searcher {
         inputStream.close()
 
         var ascii = 0
-        var nonAscii = 0
+        var other = 0
+
         for (i in data.indices) {
             val b: Byte = data[i]
 
@@ -371,12 +484,13 @@ class Searcher {
             else if (b in 0x20..0x7E)
                 ascii++
             else
-                nonAscii++
+                other++
         }
-        if (nonAscii == 0)
+
+        if (other == 0)
             return false
         else{
-            return 100 * nonAscii / (ascii + nonAscii) > 50;
+            return 100 * other / (ascii + other) > 50;
         }
 
     }

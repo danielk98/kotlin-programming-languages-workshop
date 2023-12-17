@@ -22,21 +22,34 @@ class Search : CliktCommand(invokeWithoutSubcommand = true) {
     private val binary by option("-b", "--binary", help= "search binary files").flag(default = false)
     private val color by option("-c", "--color", help= "prints with colors, highlighting the matched phrase in the output").flag(default = false)
 
+    private val afterContext by option("-A", "--after-context", help= "prints the given number of following lines for each match").int()
+    private val beforeContext by option("-B", "--before-context", help= "prints the given number of preceding lines for each match").int()
+    private val context by option("-C", "--context", help= "prints the number of preceding and following lines for each match").int()
+
+
     override fun run() {
         //save user inputs in context for further use within subcommands
         val userInput = UserInput(pattern, path, ignoreCase, noHeading, hidden, color, binary)
         currentContext.obj = userInput
 
-        //search only in case there are no subcommands
-        val subcommand = currentContext.invokedSubcommand
-        if (subcommand == null && !userInput.path.equals(null) && !userInput.pattern.equals(null)) {
+        if (afterContext != null || beforeContext != null || context != null){
             val searcher = Searcher()
-
             val patternRegex = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
-            //searcher.setBadCharacterTable(patternRegex)
-            searcher.recursiveFileSearch(userInput.path, patternRegex, userInput)
+            searcher.recursiveFileSearch(userInput.path, patternRegex, userInput,
+                linesBefore = beforeContext, linesAfter = afterContext, contextLines = context,
+                true)
         }
+        else {
+            //search only in case there are no subcommands
+            val subcommand = currentContext.invokedSubcommand
+            if (subcommand == null && userInput.path.isNotEmpty() && userInput.pattern.isNotEmpty()) {
+                val searcher = Searcher()
 
+                val patternRegex = searcher.preprocess(userInput.pattern, userInput.ignoreCase)
+                //searcher.setBadCharacterTable(patternRegex)
+                searcher.recursiveFileSearch(userInput.path, patternRegex, userInput)
+            }
+        }
     }
 }
 
@@ -58,7 +71,6 @@ class AfterContext : CliktCommand(help= "prints the given number of following li
 class BeforeContext : CliktCommand(help= "prints the given number of preceding lines for each match") {
 
     private val userInput: UserInput by requireObject()
-    //private val beforeContext: Int? by option("-B", "--before-context", help= "prints the given number of preceding lines for each match").int()
     private val beforeContext: Int? by argument(help= "prints the given number of preceding lines for each match").int()
 
     override fun run() {
