@@ -72,7 +72,7 @@ class PrintHelper {
         for (i in result.indices)
             print(result[i])
         //separates printed lines of different files
-        if (result.isNotEmpty())
-            println("--")
+        //if (result.isNotEmpty())
+            //println("--")
     }
 }

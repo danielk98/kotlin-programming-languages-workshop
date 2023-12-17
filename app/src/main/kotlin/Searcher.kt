@@ -82,6 +82,7 @@ class Searcher {
         printHelper.printResult(resultList)
     }
 
+    //used for subcommand before-context
     private fun aggregatePrintLinesBeforeMatch(
         inputStream: InputStream, filePath: String, pattern: Pattern, color: Boolean,
         noHeading: Boolean, linesBefore: Int
@@ -132,6 +133,7 @@ class Searcher {
         return resultList
     }
 
+    //used for subcommand after-context
     private fun aggregatePrintLinesAfterMatch(
         inputStream: InputStream, filePath: String,
         pattern: Pattern, color: Boolean, noHeading: Boolean, linesAfter: Int
@@ -173,6 +175,7 @@ class Searcher {
         return resultList
     }
 
+    //used for subcommand --context-search AND option -C --context
     private fun aggregatePrintLinesWithContext(
         inputStream: InputStream, filePath: String, pattern: Pattern,
         color: Boolean, noHeading: Boolean, contextLines: Int
@@ -265,9 +268,13 @@ class Searcher {
             }
             lineCount++
         }
+        if (noHeading)
+            resultList.add("--")
+
         return resultList
     }
 
+    //used for simple search
     private fun aggregatePrintLinesNoContext(
         inputStream: InputStream, filePath: String, pattern: Pattern,
         color: Boolean, noHeading: Boolean
@@ -296,6 +303,7 @@ class Searcher {
         return resultList
     }
 
+    //used for option -A and -B
     private fun aggregatePrintLinesForOptionBasedContextSearch(inputStream: InputStream, filePath: String, pattern: Pattern,
         color: Boolean, noHeading: Boolean, linesBefore: Int?, linesAfter: Int?): MutableList<String>
     {
@@ -385,49 +393,15 @@ class Searcher {
             }
             lineCount++
         }
+        if (noHeading)
+            resultList.add("--")
+
         return resultList
 
     }
 
-    /** --***Not-used***--
-     * This method creates the look-up table delta 1.
-     * It contains the shift values for all characters of a search pattern.
-     * If we encounter a mismatch, we take the mismatching character from the text T
-     * (the text that we compare our pattern against) and look it up in the badCharacterShiftTable.
-     * The shift value for that specific character will tell us how far we can skip our pattern ahead.
-     * The shift value for characters that are not in the table is always the length of the pattern.
-     * */
-    fun createBadCharacterShiftTable(pattern: CharArray): MutableMap<Char, Int> {
-        val badCharacterTable = mutableMapOf<Char, Int>()
-        for (i in pattern.indices) {
-            if (!badCharacterTable.containsKey(pattern[i])) {
-                badCharacterTable.put(pattern[i], max(1, pattern.size - i - 1))
-            } else //overwrite shift value of char with the shift value of the char that occurs at a higher index
-            {
-                badCharacterTable[pattern[i]] = max(1, pattern.size - i - 1)
-            }
-        }
-        return badCharacterTable
-    }
-
-    fun setBadCharacterTable(pattern: CharArray) {
-        badCharacterTable = createBadCharacterShiftTable(pattern)
-    }
-
-
-    //
     private fun searchStringInText(pattern: Pattern, line: CharSequence): Pair<Boolean, MutableMap<Int,Int>> {
-        /*val patternLen = pattern.pattern.length
-        val lineLen = line.length
-        var patIndex = patternLen - 1 //we compare the pattern with the line from left to right, but start from the right side of the pattern to look for matches in the line
-        var lineIndex = patIndex
-        var shiftValue: Int
-        var shiftTotal = 0
-        var matchedChar = 0
-         */
-        //val pat = Pattern.compile(pattern)
-        //while(lineLen - shiftTotal >= patternLen )
-        //{
+
         val matcher = pattern.matcher(line)
         var matchIndices: MutableMap<Int,Int> = emptyMap<Int,Int>().toMutableMap()
         while (matcher.find()) {
@@ -437,12 +411,6 @@ class Searcher {
             return Pair(false, matchIndices)
         else
             return Pair(true, matchIndices)
-        //return Pair(false, -1)
-    }
-
-    private fun getShiftValue(line: CharArray, lineIndex: Int, patternLen: Int): Int
-    {
-        return badCharacterTable[line[lineIndex]] ?: patternLen
     }
 
     //used to preprocess the search pattern
@@ -493,6 +461,35 @@ class Searcher {
             return 100 * other / (ascii + other) > 50;
         }
 
+    }
+    /** --***Not-used anymore***--
+     * This method creates the look-up table delta 1.
+     * It contains the shift values for all characters of a search pattern.
+     * If we encounter a mismatch, we take the mismatching character from the text T
+     * (the text that we compare our pattern against) and look it up in the badCharacterShiftTable.
+     * The shift value for that specific character will tell us how far we can skip our pattern ahead.
+     * The shift value for characters that are not in the table is always the length of the pattern.
+     * */
+    fun createBadCharacterShiftTable(pattern: CharArray): MutableMap<Char, Int> {
+        val badCharacterTable = mutableMapOf<Char, Int>()
+        for (i in pattern.indices) {
+            if (!badCharacterTable.containsKey(pattern[i])) {
+                badCharacterTable.put(pattern[i], max(1, pattern.size - i - 1))
+            } else //overwrite shift value of char with the shift value of the char that occurs at a higher index
+            {
+                badCharacterTable[pattern[i]] = max(1, pattern.size - i - 1)
+            }
+        }
+        return badCharacterTable
+    }
+
+    fun setBadCharacterTable(pattern: CharArray) {
+        badCharacterTable = createBadCharacterShiftTable(pattern)
+    }
+
+    private fun getShiftValue(line: CharArray, lineIndex: Int, patternLen: Int): Int
+    {
+        return badCharacterTable[line[lineIndex]] ?: patternLen
     }
 
 }
