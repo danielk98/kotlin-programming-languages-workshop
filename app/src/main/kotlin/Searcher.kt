@@ -48,7 +48,7 @@ class Searcher {
         color: Boolean, linesBefore: Int?, linesAfter: Int?, contextLines: Int?,
         optionBased: Boolean
     ) {
-
+        
         //badCharacterTable = createBadCharacterShiftTable(pattern)
         val inputStream: InputStream = File(filePath).inputStream()
         val resultList: MutableList<String>

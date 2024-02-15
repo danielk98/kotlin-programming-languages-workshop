@@ -34,35 +34,16 @@
 \subtitle{Seminar Programmiersprachen}
 \author[D. Karl]
 {Daniel Karl}
+\date{5. Februar 2024}
 
 \setbeamertemplate{frametitle}[default][left]
 \setbeamertemplate{itemize items}[square]
 \setbeamertemplate{itemize subitem}[square]
 \setbeamertemplate{itemize subsubitem}[item]
 
-
 \begin{document}
 \maketitle
-\begin{frame}
-\frametitle{Gliederung}
 
-\begin{itemize}
-\onehalfspacing
-    \item Geschichte
-    \item Charakteristiken von Kotlin
-    \begin{itemize}
-        \item Typsystem, Interoperabilität mit Java, Prägnanz
-    \end{itemize}
-    \item Besondere Konzepte
-    \begin{itemize}
-    \item Datenklassen, Null-Sicherheit, Coroutines
-    \end{itemize}
-    \item Infrastruktur
-    \item Anwendungsbereiche
-    \item Bekannte Projekte
-    \item Implementierung
-\end{itemize}
-\end{frame}
 
 \begin{frame}
 \frametitle{Geschichte}
@@ -95,22 +76,12 @@
 
 
 \begin{frame}
-\frametitle{Charakteristiken von Kotlin}
-\begin{itemize}
-\onehalfspacing
-\item Typsystem
-\item Interoperabilität mit Java
-\item Prägnanz
-\end{itemize}
-\end{frame}
-
-\begin{frame}
 \frametitle{Typsystem}
 \begin{itemize}
 \onehalfspacing
     \item statisches Typsystem
     \item Typinferenz macht explizite Typangabe optional
-    \item nullbare und nicht-nullbare Typen
+    \item nullbare und nicht-nullbare Typen % ohne Typangabe, infereiert der Kompieler einen nicht-nullbaren Typen
     \item implizite Typkonversion nur auf Supertypen
     \item alle Typen in Kotlin basieren auf einer Klassendefinition
 \end{itemize}
@@ -136,57 +107,23 @@
 \begin{itemize}
 \onehalfspacing
     \item $val$ und $var$ zum Deklarieren von Variablen
-    \item explizite Typangaben sind optional
+    %\item explizite Typangaben sind optional
     \item getter und setter werden automatisch generiert
     \item \textbf{Datenklassen} bieten eine vereinfachte Schreibweise für Klassen die nur aus Properties bestehen
-    \item \textbf{Higher-Order Funktionen}, nehmen Funktion als Parameter oder geben Funktion zurück. Erleichtern bspw. das Arbeiten mit Collections.
+    \item \textbf{Higher-Order Funktionen}, nehmen Funktion als Parameter und/oder geben Funktion zurück. Erleichtern bspw. das Arbeiten mit Collections.
     \item \textbf{Extensions}, erweitern Klassen ohne Vererbung
 \end{itemize}
 \end{frame}
 
-\begin{frame}
-\frametitle{Besondere Konzepte}
-\begin{itemize}
-\onehalfspacing
-\item Datenklassen
-\item Null-Sicherheit
-\item Coroutines
-\end{itemize}
-\end{frame}
-
-\begin{frame}
-\frametitle{Datenklassen}
-\begin{itemize}
-    \item prägnante Form von Klassen, die ausschließlich zum Speichen von Daten in Form von Properties, vorgesehen sind
-    \item Für Properties im Kopf der Klassendeklaration werden getter und setter generiert
-    \item alle Datenklassen implementieren equals(), toString() und copy() Funktionen
-\end{itemize}
-\begin{figure}[!htb]
-    \centering
-    \includegraphics[width=\linewidth]{images/Dataclass.png}
-\end{figure}
-\end{frame}
-
-\begin{frame}
-\frametitle{Null-Sicherheit}
-\begin{itemize}
-    \item Safe Calls
-    \item Elvis-Operator
-\end{itemize}
-\begin{figure}[!htb]
-    \centering
-    \includegraphics[width=\linewidth]{images/Elvis_operator.png}
-\end{figure}
-
-\end{frame}
 
 \begin{frame}
 \frametitle{Coroutines}
 \begin{itemize}
     \item Coroutines erlauben es effizient laufende asynchrone Programme zu schreiben
-    \item können als eine Art ressourcenschonender Thread gesehen werden
-    \item sie werden innerhalb eines Threads ausgeführt und besitzen ihren eigenen Kontext
+    %\item können als eine Art ressourcenschonender Thread gesehen werden
+    \item werden innerhalb eines Threads ausgeführt und besitzen ihren eigenen Kontext
     \item lassen sich mit suspendierenden Funktionen anhalten
+    \item in der Zwischenzeit können andere Coroutines im Thread ausgeführt werden
     \item sind unabhängig von einem Thread
 \end{itemize}
 \end{frame}
@@ -196,7 +133,7 @@
 \frametitle{Infrastruktur}
 \begin{itemize}
 \onehalfspacing
-    \item Buildsystem: Gradle, Maven
+    \item Buildsysteme: Gradle, Maven
     \item Dokumentation: KDoc (analog zu JavaDoc)
     \item Entwicklungsumgebung: IntelliJ, Android Studio, Eclipse
     \item Java to Kotlin converter (J2K), konvertiert automatisch Java Klassen zu Kotlin Dateien
@@ -211,7 +148,7 @@
     \item Android App Entwicklung: von Google empfohlene Programmiersprache
     \item Desktop- und serverbasierte Anwendungen
     \item Multiplatform (Android und iOS)
-    \item Data Science und Machine Learning (kotlindl)
+    \item Data Science und Machine Learning
 \end{itemize}
 \end{frame}
 
@@ -219,7 +156,7 @@
 \frametitle{Bekannte Projekte}
 \begin{itemize}
 \onehalfspacing
-    \item Google Home, Duolingo Android App
+    \item Google Home App, Duolingo Android App
     \item Umstieg von Java zu Kotlin
     \item verbesserte Wartbarkeit und deutliche Reduzierung der Codezeilen
 \end{itemize}
@@ -237,14 +174,32 @@
     \begin{itemize}
         \item Binärdateien habe typischerweise vermehrt Steuerzeichen und ASCII Zeichen aus dem Erweiterten ASCII Zeichen Satz
         \item Algorithmus nimmt 1024 Bytes einer Datei und zählt die typischen und untypische ASCII Zeichen
-        \item falls über 50\% typische ASCII Zeichen sind, wird die Datei als Binärdatei betrachtet
-    \end{itemize}
-    \item \textbf{Suchen von regulären Ausrücken:}
-    \begin{itemize}
-        \item vereinfachte Iteration durch die Textzeilen einer Datei mithilfe von Higher-Order Extension Funktionen
+        \item falls über 50\% typische ASCII Zeichen, wird die Datei als Binärdatei betrachtet
     \end{itemize}
 \end{itemize}
 \end{frame}
+
+\begin{frame}
+\frametitle{Implementierung}
+\onehalfspacing
+\begin{itemize}
+    \item \textbf{Suchen von regulären Ausdrücken:}
+    \begin{itemize}
+        \item Einbindung des java.io Pakets %Extension Funktion zum Einlesen der Datein verwendet
+        \item vereinfachte Iteration durch die Textzeilen einer Datei mithilfe von Higher-Order Extension Funktionen
+        \item Suche von regulären Ausdrücke mit dem java.util.regex Paket
+    \end{itemize}
+
+    \item \textbf{Command Line Interface:}
+    \begin{itemize}
+        \item mit der externen clikt Bibliothek umgesetzt
+    \end{itemize}
+
+\end{itemize}
+\end{frame}
+
+
+
 
 \begin{frame}
 \frametitle{}
